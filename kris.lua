@@ -32,6 +32,8 @@ function kris.init(mod)
           {"ORIGINAL", "original"},
 	  {"ROCKET A", "rocketA"},
 	  {"ROCKET B", "rocketB"},
+      {"SYGNA", "sygna"},
+      {"SYGNA ALT", "sygnaAlt"},
 	}, default = "original"
     },
     {
@@ -97,6 +99,14 @@ function kris.init(mod)
     rocketB = {
       dmg = {path = "assets/front/rocketFrontB.png", trueColor = false},
       fullColor = {path = "assets/front/rocketFrontColorB.png", trueColor = true},
+    },
+    sygna = {
+      dmg = {path = "assets/front/sygnaFront.png", trueColor = false},
+      fullColor = {path = "assets/front/sygnaFrontColor.png", trueColor = true},
+    },
+    sygnaAlt = {
+      dmg = {path = "assets/front/sygnaFrontAlt.png", trueColor = false},
+      fullColor = {path = "assets/front/sygnaFrontColorAlt.png", trueColor = true},
     },
   }
 
