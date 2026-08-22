@@ -1,6 +1,6 @@
 local kris = {}
 
-function kris.init(mod, cfg)
+function kris.init(mod)
 
 
   local PaletteFX = require("src.render.PaletteFX")
@@ -140,14 +140,73 @@ function kris.init(mod, cfg)
   
 
   -- Recoloring the "advanced" color palette
+  -- Falls back to this default unless the selected sprite folder
+  -- provides its own via meta.json. -Elvie
   -- ------------------------------------------
-  local CRYSTAL_COLORS = {
+  local DEFAULT_CRYSTAL_COLORS = {
     {255, 255, 255},
     {255, 173, 99},
     {1, 99, 198},
     {0, 0, 0}
   }
-  
+
+  local function isColorTable(t)
+    if type(t) ~= "table" or #t ~= 4 then return false end
+    for _, triplet in ipairs(t) do
+      if type(triplet) ~= "table" or #triplet ~= 3 then return false end
+      for _, v in ipairs(triplet) do
+        if type(v) ~= "number" or v < 0 or v > 255 then return false end
+      end
+    end
+    return true
+  end
+
+  -- Per-folder overworld, naming, and gender overrides
+  -- Name choices, gender mode, the recolor palette, and the overworld
+  -- sprites below all follow whichever folder is selected for FRONT
+  -- SPRITE, falling back to Crystal's defaults when a folder doesn't
+  -- define them. -Elvie
+  -- --------------------------------------------------
+  local DEFAULT_NAME_CHOICES = {"KRIS", "AMANDA", "JUANA", "JODI"}
+  local DEFAULT_GENDER_MODE = "girl"
+  local VALID_GENDER_MODES = { boy = true, girl = true, enby = true }
+
+  local function isNonEmptyStringArray(t)
+    if type(t) ~= "table" then return false end
+    local count = 0
+    for k, v in pairs(t) do
+      if type(k) ~= "number" or type(v) ~= "string" or v == "" then return false end
+      count = count + 1
+    end
+    return count > 0
+  end
+
+  local overworldKey = mod.options:get("frontSprite")
+  local overworldMeta = readMeta(overworldKey)
+
+  local CRYSTAL_COLORS = isColorTable(overworldMeta.overworldColors)
+    and overworldMeta.overworldColors or DEFAULT_CRYSTAL_COLORS
+
+  local nameChoices = isNonEmptyStringArray(overworldMeta.nameChoices)
+    and overworldMeta.nameChoices or DEFAULT_NAME_CHOICES
+
+  local genderMode = (type(overworldMeta.genderMode) == "string" and VALID_GENDER_MODES[overworldMeta.genderMode])
+    and overworldMeta.genderMode or DEFAULT_GENDER_MODE
+
+  -- Overworld sprite files, resolved per file with fallback to
+  -- Crystal's stock assets. -Elvie
+  -- --------------------------------------------------
+  local function overworldAsset(name, fallback)
+    local variant = fileVariant(overworldKey, name, false)
+    return variant and mod.assets:path(variant.path) or mod.assets:path(fallback)
+  end
+
+  local overworldWalk = overworldAsset("overworldWalk.png", "assets/overworld/crystalPlayer.png")
+  local overworldBike = overworldAsset("overworldBike.png", "assets/overworld/crystalBike.png")
+  local overworldFishSide = overworldAsset("overworldFishSide.png", "assets/overworld/crystalFishSide.png")
+  local overworldFishFront = overworldAsset("overworldFishFront.png", "assets/overworld/crystalFishFront.png")
+  local overworldFishBack = overworldAsset("overworldFishBack.png", "assets/overworld/crystalFishBack.png")
+
   -- Intercepts the sprite renderer if the sprite is assigned a matching palette source and applies the CRYSTAL_COLORS palette to the sprite. 
   -- Hands the request back to the original sprite renderer if any other sprite.
   PaletteFX.spriteObp = function(spriteDef, seed)
@@ -177,15 +236,17 @@ function kris.init(mod, cfg)
     
   -- Sprite replacements
   -- RED
+  -- image/path values now come from overworldAsset above instead of
+  -- fixed paths, so a folder can override them. -Elvie
   -- --------------------------
   mod.content.sprites:patch("SPRITE_RED", {
-    image = mod.assets:path("assets/overworld/crystalPlayer.png"),
+    image = overworldWalk,
     trueColor = false,
     paletteSource = "PLAYER_PALETTE"
   })
   
   mod.content.sprites:patch("SPRITE_RED_BIKE", {
-    image = mod.assets:path("assets/overworld/crystalBike.png"),
+    image = overworldBike,
     trueColor = false,
     paletteSource = "PLAYER_PALETTE"
   })
@@ -195,27 +256,24 @@ function kris.init(mod, cfg)
   })
 
 
-  local CRYSTAL_FISH_SIDE = mod.assets:path("assets/overworld/crystalFishSide.png")
-  local CRYSTAL_FISH_FRONT = mod.assets:path("assets/overworld/crystalFishFront.png")
-  local CRYSTAL_FISH_BACK = mod.assets:path("assets/overworld/crystalFishBack.png")
-
   mod.content.field:patch("overworldFx", {
-    redFishSide  = { path = CRYSTAL_FISH_SIDE },
-    redFishFront = { path = CRYSTAL_FISH_FRONT },
-    redFishBack  = { path = CRYSTAL_FISH_BACK },
+    redFishSide  = { path = overworldFishSide },
+    redFishFront = { path = overworldFishFront },
+    redFishBack  = { path = overworldFishBack },
   })
 
   -- Sprite replacements
   -- GOLD
+  -- Same overworldWalk/overworldBike source as RED above. -Elvie
   -- -------------------------
   mod.content.sprites:patch("SPRITE_CHRIS", {
-    image = mod.assets:path("assets/overworld/crystalPlayer.png"),
+    image = overworldWalk,
     trueColor = false,
     paletteSource = "PLAYER_PALETTE",
   }) 
 
   mod.content.sprites:patch("SPRITE_CHRIS_BIKE", {
-    image = mod.assets:path("assets/overworld/crystalBike.png"),
+    image = overworldBike,
     trueColor = false,
     paletteSource = "PLAYER_PALETTE",
   })
@@ -247,16 +305,18 @@ function kris.init(mod, cfg)
   })
    
   -- New game naming options
+  -- Pulled from nameChoices above instead of a fixed list. -Elvie
   -- ---------------------------
   mod.content.field:override("boot", {
     namePresets = {
-      player = cfg.nameChoices
+      player = nameChoices
     }
   })
   
   -- Gen 2 Naming options and forcing true color of player sprite.
   -- This can likely be reduced when the field registry is
   -- hooked into gen 2 via the mod api.
+  -- Also pulled from nameChoices above instead of a fixed list. -Elvie
   -- --------------------------------------------------
   mod.events:on("game.ready", function(ev)
     local game = ev.game
@@ -264,7 +324,7 @@ function kris.init(mod, cfg)
     game.data.field = game.data.field or {}
     game.data.field.boot = game.data.field.boot or {}
     game.data.field.boot.namePresets = {
-      player = cfg.nameChoices
+      player = nameChoices
     }
     if palettes and palettes.trainers then
       palettes.trainers.CAL = nil
@@ -284,6 +344,14 @@ function kris.init(mod, cfg)
       versionRibbon = krisEdition,
     },
   })
+
+  -- Hands the resolved config back to main.lua so it can choose
+  -- girlMode, nbMode, or neither. -Elvie
+  -- --------------------------------------------------
+  return {
+    nameChoices = nameChoices,
+    genderMode = genderMode,
+  }
 
 end
 
