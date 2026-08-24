@@ -32,12 +32,29 @@
 }
 ```
 
-### Naming & gender options
-Any sprite folder's `meta.json` (the same one that defines `label`) also accepts two optional keys:
+### Overworld sprites, colors, names & gender
+A sprite folder can also optionally include any of these files to replace the walking, bike, and fishing overworld sprites:
+* `overworldWalk.png`
+* `overworldBike.png`
+* `overworldFishSide.png`
+* `overworldFishFront.png`
+* `overworldFishBack.png`
+
+And its `meta.json` can optionally set any of these keys:
+* `overworldColors` — array of exactly four `[r, g, b]` triplets (0-255) overriding the recolor palette applied to the sprites above.
 * `nameChoices` — array of strings shown as name choices at the start of a new game (Gen 1 and Gold).
 * `genderMode` — one of `"boy"` (vanilla male text), `"girl"` (Crystal's re-gendered text), or `"enby"` (gender-neutral text).
 
-add them to your own sprite's `meta.json` alongside its `label`. If more than one sprite folder defines the same key, the last one wins in alphabetical order by folder name, so it's simplest to only set them in one place.
+All of the above — the five overworld files and the three meta.json keys — apply only to whichever folder is currently selected as **FRONT SPRITE** in the options menu (the same selection the title screen image uses), not to every folder at once. Anything a folder doesn't supply falls back to Crystal's defaults. Like the title screen sprite, all of this is resolved once when the mod loads, from whichever FRONT SPRITE is selected at that time — changing FRONT SPRITE mid-session won't update it without a restart.
+
+```
+{
+  "label": "MY SPRITE",
+  "nameChoices": ["MY NAME", "OTHER NAME"],
+  "genderMode": "enby",
+  "overworldColors": [[255, 255, 255], [255, 173, 99], [1, 99, 198], [0, 0, 0]]
+}
+```
 
 
 ## What works in Gold

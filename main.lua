@@ -1,13 +1,10 @@
 return function(mod)
-  local config = require("mods.crystal.config")
   local kris = require("mods.crystal.kris")
   local girlMode = require("mods.crystal.girlMode")
   local nbMode = require("mods.crystal.nbMode")
   local credits = require("mods.crystal.credits")
 
-  local cfg = config.load(mod)
-
-  kris.init(mod, cfg)
+  local cfg = kris.init(mod)
 
   if cfg.genderMode == "girl" then
     girlMode.init(mod)
