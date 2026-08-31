@@ -16,6 +16,48 @@ function nbMode.init(mod)
 
   -- GEN 2 -------------------------
   -- -------------------------------
+
+  -- CRYSTAL --------------------
+  -- Same lines as the Gold/Silver keys below, keyed to Crystal's own
+  -- ROM addresses (Crystal is a separate engine with a different text
+  -- layout -- confirmed by content, not assumed: none of the Gold keys
+  -- exist in Crystal's extracted text data). A few of these are
+  -- already gender-neutral in vanilla Crystal; included anyway for
+  -- consistency with the rest of this table. Two Gold-side lines
+  -- (4c:5009, 57:4d49) have no confirmed Crystal equivalent and are
+  -- intentionally left out rather than guessed. -Elvie
+  -- --------------------------------
+    ["64:40b0"] = "Hiya, kid! I\nsee you're new in\011MAHOGANY TOWN.\012Since you're new,\nyou should try a\012yummy RAGECANDY-\nBAR!\012Right now, it can\nbe yours for just\011¥300! Want one?",
+    ["69:57ba"] = "Let's see…\012…DARK CAVE leads\nto another road…\012That's good to\nknow.\012Thanks for bring-\ning this to me.\012My friend's a good\nguy, and you're \011swell too!\012I'd like to do\nsomething good in\011return too!\012I know! I want you\nto have this!",
+    ["6b:4130"] = "Whoa! You've\ngot more zip.",
+    ["1e:4609"] = "You're a tough\n kid.",
+    ["1e:4743"] = "IRENE: Kyaaah!\nSomeone found us!",
+    ["1e:4765"] = "IRENE: Ohhhh!\nToo strong!",
+    ["27:4fe1"] = "How'd you like my\nMOOMOO MILK?\012It's my pride and\njoy.\012Give it to POKéMON\nto restore HP!\012I'll give it to ya\nfer just ¥500.",
+    ["26:5891"] = "If you can\ndefeat all the\012KIMONO GIRLS, I'll\ngive you a gift.",
+    ["6a:7759"] = "Yo!\012… Huh? It's over\nalready?\012Sorry, sorry!\012CINNABAR GYM was\ngone, so I didn't\012know where to find\nyou.\012But, hey, you're\nplenty strong even\012without my advice.\nI knew you'd win!",
+    ["66:6cd2"] = "Hold it there,\nkiddo!\012The toll is ¥1000\nto go through.",
+    ["66:6d0a"] = "Thank you very much!",
+    ["63:5f93"] = "The SLOWPOKE came\nback, and you even\011found FARFETCH'D.\012You're the cool-\nest!",
+    ["1a:5ddd"] = "Excuse me, kid!\nCan you do a guy\011a favor?\012Can you take this\nPOKéMON with MAIL\011to my friend?\012He's on ROUTE 31.",
+    ["1a:5e48"] = "You will? Perfect!\nThanks, kid!\012My pal's a chubby\nguy who snoozes\011all the time.\012You'll recognize\nhim right away!",
+    ["1a:5f8b"] = "Thanks, kid! You\nmade the delivery\011for me!\012Here's something\nfor your trouble!",
+    ["15:51ed"] = "May I see your\nrail PASS, please?\012OK. Right this\nway, please.",
+    ["64:6142"] = "SURGE: Hey, you\nlittle tyke!\012I have to hand it\nto you. It may not\012be very smart to\nchallenge me, but\011it takes guts!\012When it comes to\nelectric POKéMON,\011I'm number one!\012I've never lost on\nthe battlefield.\012I'll zap you just\nlike I did my\011enemies in war!",
+    ["64:6238"] = "SURGE: Arrrgh!\nYou are strong!\012OK, kid. You get\nTHUNDERBADGE!",
+    ["60:54a6"] = "LANCE: It's been a\nlong time since I\011last came here.\012This is where we\nhonor the LEAGUE\012CHAMPIONS for all\neternity.\012Their courageous\nPOKéMON are also\011inducted.\012Here today, we\nwitnessed the rise\012of a new LEAGUE\nCHAMPION--a\012trainer who feels\ncompassion for,\012and trust in \nPOKéMON.\012A trainer who\nsucceeded through\012perseverance and\012determination.\012The new LEAGUE\nCHAMPION who has\012all the makings\nof greatness!\012{PLAYER}, allow me\nto register you\012and your partners\nas CHAMPIONS!",
+    ["1d:4ada"] = "May I see your\nS.S.TICKET?",
+    ["1d:4b11"] = "{PLAYER} flashed\nthe S.S.TICKET.\012That's it.\nThank you!",
+    ["1d:4f8b"] = "May I see your\nS.S.TICKET?",
+    ["1d:4fc2"] = "{PLAYER} flashed\nthe S.S.TICKET.\012That's it.\nThank you!",
+    ["1d:5412"] = "Whoa!\012Excuse me.\nI was in a hurry!\012My granddaughter\nis missing!\012She's just a wee\ngirl. If you see\012her, please let me\nknow!",
+    ["1d:5937"] = "I give up.\nYou don't have to\012look. Just forget\nabout it!",
+    ["1d:5bbd"] = "Ooh, wow. You're\ntough!",
+    ["1d:6284"] = "Grandpa, here I\nam! I was playing\012with the CAPTAIN\nand this person!",
+    ["1d:687b"] = "Hey. Could I\nget you to look\011for my buddy?\012He's goofing off\nsomewhere, that\011lazy bum!\012I want to go find\nhim, but I'm on\011duty right now.",
+    ["26:6a7b"] = "BLUE: Yo! Finally\ngot here, huh?\012I wasn't in the\nmood at CINNABAR,\012but now I'm ready\nto battle you.\012…\012You're telling me\nyou conquered all\011the GYMS in JOHTO?\012Heh! JOHTO's GYMS\nmust be pretty\011pathetic then.\012Hey, don't worry\nabout it.\012I'll know if you\nare good or not by\012battling you right\nnow.\012Ready, JOHTO CHAMP?",
+    ["26:751d"] = "I'm sorry.\nThis would be your\012second time today.\nYou're permitted\012to enter just once\na day.",
+    ["62:6917"] = "May I see your\nrail PASS, please?\012OK. Right this\nway, please.",
     ["4b:4ff1"] = "Whoa! You've\ngot more zip.",
     ["55:440c"] = "The SLOWPOKE came\nback, and you even\011found FARFETCH'D.\012You're the cool-\nest!",
     ["4b:550f"] = "You're a tough\n kid.",

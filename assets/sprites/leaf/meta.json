@@ -1,5 +1,6 @@
 {
   "label": "LEAF",
+  "character": "LEAF",
   "nameChoices": ["LEAF", "FERN", "DAISY", "SYLVIE"],
   "genderMode": "enby",
   "overworldColors": [[255, 255, 255], [231, 159, 124], [40, 128, 56], [0, 0, 0]]

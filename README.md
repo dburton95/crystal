@@ -24,13 +24,30 @@
     * meta.json
       * As long as you have either back.png or backColor.png the other is option. The mod is designed to fallback if a sprite is missing.
 * Your meta.json needs to have a single key defined. This is the name that will appear in the options menu.
+* Your meta.json can also optionally set a `character` key, grouping several folders together as variants of one character (e.g. a default look and a separate battle-only look). Folders sharing the same `character` value show up under one **CHARACTER** entry in the options menu, with their own `label`s as the sub-choice between them. A folder that doesn't set `character` is treated as its own standalone, single-variant character -- exactly how every folder already works today, so this is fully backward compatible with existing sprite packs.
 
 ### Example meta.json file
+A standalone character, with no other variants:
 ```
 {
   "label": "ARALE"
 }
 ```
+
+Two folders grouped as variants of the same character:
+```
+{
+  "label": "DEFAULT LOOK",
+  "character": "ARALE"
+}
+```
+```
+{
+  "label": "BATTLE LOOK",
+  "character": "ARALE"
+}
+```
+Both show up under a single **ARALE** entry in the **CHARACTER** option, with **DEFAULT LOOK** and **BATTLE LOOK** as the front/battle sprite choices underneath it.
 
 ### Overworld sprites, colors, names & gender
 A sprite folder can also optionally include any of these files to replace the walking, bike, and fishing overworld sprites:
@@ -45,7 +62,10 @@ And its `meta.json` can optionally set any of these keys:
 * `nameChoices` — array of strings shown as name choices at the start of a new game (Gen 1 and Gold).
 * `genderMode` — one of `"boy"` (vanilla male text), `"girl"` (Crystal's re-gendered text), or `"enby"` (gender-neutral text).
 
-All of the above — the five overworld files and the three meta.json keys — apply only to whichever folder is currently selected as **FRONT SPRITE** in the options menu (the same selection the title screen image uses), not to every folder at once. Anything a folder doesn't supply falls back to Crystal's defaults. Like the title screen sprite, all of this is resolved once when the mod loads, from whichever FRONT SPRITE is selected at that time — changing FRONT SPRITE mid-session won't update it without a restart.
+All of the above — the five overworld files and the three meta.json keys — apply only to whichever folder is resolved as the front sprite for the currently selected **CHARACTER** (the same one the title screen image uses), not to every folder at once. Anything a folder doesn't supply falls back to Crystal's defaults. Like the title screen sprite, all of this is resolved once when the mod loads, from whichever CHARACTER (and, if it has more than one look, FRONT SPRITE variant) is selected at that time — changing either mid-session won't update it without a restart.
+
+### Gen 2 trainer card portrait
+On Gold, Silver, and Crystal, a folder can also optionally include `trainerCard.png` (and `trainerCardColor.png` for the full color variant) — art purpose-built for the trainer card's 40x56 portrait box, drawn at native size and centered. If a folder doesn't provide one, the trainer card falls back to that folder's regular front sprite instead.
 
 ```
 {
@@ -68,5 +88,8 @@ All of the above — the five overworld files and the three meta.json keys — a
 ## What doesn't work in Gold
 *  Overworld sprite doesn't support DMG palletes yet (You can use the DMG palette. the sprite will just be the only thing in full color)
 *  Player name options still show Golds defaults (for now)
+
+## Crystal
+Crystal is now a supported game version alongside Gold and Silver. Crystal has its own native gender-choice screen (choosing between Chris and Kris) that Gold and Silver never had; since this mod's sprite already comes from your selected sprite folder, that screen is skipped automatically so it doesn't ask a second, separate question. Everything documented above for Gold applies to Crystal as well.
 
 
