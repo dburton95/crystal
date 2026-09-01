@@ -1,17 +1,12 @@
-# Crystal Player Mod
+# Crystal Lens
  A player sprite mod for gen1recomp++
 <img width="1023" height="769" alt="image" src="https://github.com/user-attachments/assets/9f04bc87-5af2-4607-a83b-673b197f2460" />
 
 
 ## Features
-* Bike Sprite
-* Fishing Sprite
-* Battle Sprites (Front and Back)
-* Voxel Mod support -- Mostly working.
-  * The fishing sprite breaks with voxel. It looks like this happens on the original sprite too.
-* Changed name options in Oak's dialogue to match Crystal's original options
-* All sprites have an SGB compatibility mode as well as a full color mode
-* Bring your own Front and Back Sprites!
+* A fully featured drop in Player Sprite replacement framework.
+* Comes with Kris from Crystal version as default
+* Easy to write JSON files let you import your favorite character sprites and separate them by character name.
 
 ## How to add your own sprites!
 * Sprites can be placed in their own folder at assets/sprites/FOLDER_NAME_HERE
@@ -31,6 +26,7 @@ A standalone character, with no other variants:
 ```
 {
   "label": "ARALE"
+  "character"
 }
 ```
 
@@ -87,7 +83,6 @@ On Gold, Silver, and Crystal, a folder can also optionally include `trainerCard.
 
 ## What doesn't work in Gold
 *  Overworld sprite doesn't support DMG palletes yet (You can use the DMG palette. the sprite will just be the only thing in full color)
-*  Player name options still show Golds defaults (for now)
 
 ## Crystal
 Crystal is now a supported game version alongside Gold and Silver. Crystal has its own native gender-choice screen (choosing between Chris and Kris) that Gold and Silver never had; since this mod's sprite already comes from your selected sprite folder, that screen is skipped automatically so it doesn't ask a second, separate question. Everything documented above for Gold applies to Crystal as well.
