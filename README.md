@@ -64,6 +64,11 @@ All of the above — the five overworld files and the three meta.json keys — s
 
 The overworld sprites and their colours, the battle sprites and the trainer card follow your choice straight away. The title screen, name choices and `genderMode` (the re-gendered text) are set when the mod loads, so those need a restart after a change.
 
+### Gen 3 and 4 looks from Emerald Lens
+With [Emerald Lens](https://github.com/ElvieBlooms/emerald_lens) installed too, its Gen 3 and 4 looks join the lists here: each one shows up under its character in **FRONT SPRITE** (a label this mod already has for that character gets a `+`). Crystal Lens stays in charge of the choices. While your front sprite is one of Emerald Lens's looks, Emerald Lens draws your player (walking, biking, surfing, fishing and battle pics, in full colour) and this mod steps back; pick one of this mod's looks and it takes over again. Nothing changes until you pick one: your own looks stay the default. Emerald Lens's looks can't be the rival yet.
+
+Mods that want to add looks the same way can use this mod's `exports.lens.addLooks` (see the comment in `kris.lua`).
+
 ### The LENS screen
 **LENS** on the START menu (where **T. KRIS** used to be) opens the same choices as the mod options, for the game you're playing, with a preview of the look: its front sprite and walking sprite, in full colour. Up and down pick a row, left and right (or A) change it, and B closes it. **CREDITS** (press A) opens the mod's credits, followed by every look and its `credit` lines from `meta.json` (optional: a string or a list of strings naming the artists).
 

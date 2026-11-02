@@ -101,45 +101,55 @@ function kris.init(mod)
     end
   end
 
-  table.sort(battleChoices, byLabel)
-  table.sort(frontChoices, byLabel)
-  for _, byCharacter in ipairs({ frontFoldersByCharacter, battleFoldersByCharacter }) do
-    for _, entries in pairs(byCharacter) do
-      table.sort(entries, byLabel)
-    end
-  end
-
-  -- The character list itself: every character with a front and/or battle
-  -- folder, deduplicated. -Elvie
-  -- --------------------------------------------------
-  local characterSet = {}
-  for character in pairs(frontFoldersByCharacter) do characterSet[character] = true end
-  for character in pairs(battleFoldersByCharacter) do characterSet[character] = true end
-  local characterChoices = {}
-  for character in pairs(characterSet) do
-    table.insert(characterChoices, { label = character, key = character })
-  end
-  table.sort(characterChoices, byLabel)
-
   local function sanitizeKey(s)
     return (s:gsub("%W", "_"))
   end
 
-  -- Every folder of each character, front and battle alike, in label
-  -- order: what a look falls back through, sheet by sheet. -Elvie
+  -- Looks another mod draws (Emerald Lens's Gen 3 and 4 looks, through
+  -- exports.lens below): [key] = { provider, look }. They join the lists
+  -- like folders; while one is your front sprite this mod steps back and
+  -- that mod draws the player. -Elvie
+  local provided = {}
+
+  -- The character list and every folder of each character, front and
+  -- battle alike, in label order: what a look falls back through, sheet
+  -- by sheet. Filled in place by sortLists, so they can grow when another
+  -- mod adds looks. -Elvie
   -- --------------------------------------------------
+  local characterChoices = {}
   local foldersOf = {}
-  for _, byCharacter in ipairs({ frontFoldersByCharacter, battleFoldersByCharacter }) do
-    for character, entries in pairs(byCharacter) do
-      foldersOf[character] = foldersOf[character] or {}
-      for _, entry in ipairs(entries) do
-        local seen = false
-        for _, other in ipairs(foldersOf[character]) do seen = seen or other.key == entry.key end
-        if not seen then table.insert(foldersOf[character], entry) end
+  local function sortLists()
+    table.sort(battleChoices, byLabel)
+    table.sort(frontChoices, byLabel)
+    for _, byCharacter in ipairs({ frontFoldersByCharacter, battleFoldersByCharacter }) do
+      for _, entries in pairs(byCharacter) do
+        table.sort(entries, byLabel)
       end
     end
+    -- The character list itself: every character with a front and/or
+    -- battle folder, deduplicated. -Elvie
+    local characterSet = {}
+    for character in pairs(frontFoldersByCharacter) do characterSet[character] = true end
+    for character in pairs(battleFoldersByCharacter) do characterSet[character] = true end
+    for i = #characterChoices, 1, -1 do characterChoices[i] = nil end
+    for character in pairs(characterSet) do
+      table.insert(characterChoices, { label = character, key = character })
+    end
+    table.sort(characterChoices, byLabel)
+    for character in pairs(foldersOf) do foldersOf[character] = nil end
+    for _, byCharacter in ipairs({ frontFoldersByCharacter, battleFoldersByCharacter }) do
+      for character, entries in pairs(byCharacter) do
+        foldersOf[character] = foldersOf[character] or {}
+        for _, entry in ipairs(entries) do
+          local seen = false
+          for _, other in ipairs(foldersOf[character]) do seen = seen or other.key == entry.key end
+          if not seen then table.insert(foldersOf[character], entry) end
+        end
+      end
+    end
+    for _, entries in pairs(foldersOf) do table.sort(entries, byLabel) end
   end
-  for _, entries in pairs(foldersOf) do table.sort(entries, byLabel) end
+  sortLists()
 
   -- The selected folder first, then the character's others. -Elvie
   local function chainFor(character, selected)
@@ -164,6 +174,11 @@ function kris.init(mod)
     for _, entry in ipairs(entries) do
       if entry.key == selected then return selected end
     end
+    -- nothing picked yet: this mod's own first, so another mod's added
+    -- looks never become the default -Elvie
+    for _, entry in ipairs(entries) do
+      if not provided[entry.key] then return entry.key end
+    end
     return entries[1].key
   end
 
@@ -173,6 +188,15 @@ function kris.init(mod)
 
   local function resolveBattleKey(character)
     return resolveCharacterFolder(battleFoldersByCharacter, character, "battleSpriteFor_")
+  end
+
+  -- The other mod drawing the player right now, and its look's key, or
+  -- nil while this mod's own look is picked -Elvie
+  local function providerNow()
+    local key = resolveFrontKey(mod.options:get("character"))
+    local entry = key and provided[key]
+    if entry then return entry.provider, key end
+    return nil
   end
 
   -- Resolves the default front sprite path for whichever character is
@@ -195,6 +219,17 @@ function kris.init(mod)
   -- below, one pair per character, each hidden until that character is
   -- selected. -Elvie
   -- ----------------------------------
+  local RIVAL_OFF = "_off"
+  local rivalChoices = {}
+  -- the looks the rival can wear: this mod's own, with Game Boy art -Elvie
+  local function ownLooks(entries)
+    local out = {}
+    for _, entry in ipairs(entries or {}) do
+      if not provided[entry.key] then out[#out + 1] = entry end
+    end
+    return out
+  end
+  local function buildRows()
   local optionRows = {
     {
       key = "character", type = "choice", label = "CHARACTER",
@@ -213,14 +248,14 @@ function kris.init(mod)
     if fronts and #fronts > 1 then
       table.insert(optionRows, {
         key = "frontSpriteFor_" .. sanitizeKey(key), type = "choice", label = "FRONT SPRITE",
-        choices = toChoicePairs(fronts), default = defaultKey(fronts, "original"),
+        choices = toChoicePairs(fronts), default = defaultKey(ownLooks(fronts), "original"),
         visible_if = { key = "character", equals = key },
       })
     end
     if battles and #battles > 1 then
       table.insert(optionRows, {
         key = "battleSpriteFor_" .. sanitizeKey(key), type = "choice", label = "BATTLE SPRITE",
-        choices = toChoicePairs(battles), default = defaultKey(battles, "original"),
+        choices = toChoicePairs(battles), default = defaultKey(ownLooks(battles), "original"),
         visible_if = { key = "character", equals = key },
       })
     end
@@ -245,15 +280,19 @@ function kris.init(mod)
   -- RIVAL: a character for Blue (Red/Blue/Yellow) or Silver (Gold/Silver/
   -- Crystal), with a RIVAL LOOK row when it has more than one front
   -- sprite. OFF keeps the game's own rival. -Elvie
-  local RIVAL_OFF = "_off"
-  local rivalChoices = toChoicePairs(characterChoices)
-  table.insert(rivalChoices, 1, { "OFF", RIVAL_OFF })
+  for i = #rivalChoices, 1, -1 do rivalChoices[i] = nil end
+  table.insert(rivalChoices, { "OFF", RIVAL_OFF })
+  for _, character in ipairs(characterChoices) do
+    if #ownLooks(frontFoldersByCharacter[character.key]) > 0 then
+      table.insert(rivalChoices, { character.label, character.key })
+    end
+  end
   table.insert(optionRows, {
     key = "rival", type = "choice", label = "RIVAL", choices = rivalChoices, default = RIVAL_OFF,
   })
   for _, character in ipairs(characterChoices) do
-    local fronts = frontFoldersByCharacter[character.key]
-    if fronts and #fronts > 1 then
+    local fronts = ownLooks(frontFoldersByCharacter[character.key])
+    if #fronts > 1 then
       table.insert(optionRows, {
         key = "rivalLookFor_" .. sanitizeKey(character.key), type = "choice", label = "RIVAL LOOK",
         choices = toChoicePairs(fronts), default = defaultKey(fronts, "original"),
@@ -262,13 +301,18 @@ function kris.init(mod)
     end
   end
 
-  mod.options:define(optionRows)
+  return optionRows
+  end
+
+  mod.options:define(buildRows())
 
   -- Assign player sprite based on mod options
   -- -----------------------------------------
   mod.hooks:wrap("player.sprite", function(next, path, ctx)
     path = next(path,ctx)
     if ctx.demo then return path end
+    -- another mod's look: that mod gives the pics -Elvie
+    if providerNow() then return path end
 
     local colorMode = mod.options:get("colorMode")
     local character = mod.options:get("character")
@@ -466,6 +510,7 @@ function kris.init(mod)
     local KRIS = { SPRITE_KRIS = "walk", SPRITE_KRIS_BIKE = "bike" }
     local originalDraw = Player.draw
     Player.draw = function(self, ...)
+      if providerNow() then return originalDraw(self, ...) end
       local id = type(self.spriteDef) == "table" and self.spriteDef.id
       local kind = KIND[id] or (mod.options:get("gender") == "save" and KRIS[id])
       local r = kind and rendererFor(kind)
@@ -480,6 +525,7 @@ function kris.init(mod)
     local Player = require("src.world.Player")
     local originalDraw = Player.draw
     Player.draw = function(self, ...)
+      if providerNow() then return originalDraw(self, ...) end
       local s1, s2, fish = self.sprite, self.bikeSprite, self.fishTiles
       self.sprite = rendererFor("walk") or s1
       self.bikeSprite = (s2 and rendererFor("bike")) or s2
@@ -492,6 +538,53 @@ function kris.init(mod)
       if not ok then error(err, 0) end
     end
   end
+
+  -- Looks from another mod
+  -- exports.lens.addLooks(provider) adds another mod's looks to the
+  -- lists (Emerald Lens adds its Gen 3 and 4 looks). provider is
+  --   { id, looks = { { key, character, label, credit } },
+  --     configure = function(key) ... end, preview = function(key) ... end }
+  -- configure gets the look's key while it's your front sprite, and nil
+  -- when it isn't, so that mod draws the player only then; preview
+  -- returns { pic = path } for the LENS screen. This mod stays in charge
+  -- of the choices. -Elvie
+  -- --------------------------------------------------
+  local providers = {}
+  local function notifyProviders()
+    local current, key = providerNow()
+    for _, provider in ipairs(providers) do
+      if type(provider.configure) == "function" then
+        pcall(provider.configure, provider == current and key or nil)
+      end
+    end
+  end
+
+  mod.exports = mod.exports or {}
+  mod.exports.lens = {
+    version = 1,
+    addLooks = function(provider)
+      if type(provider) ~= "table" or type(provider.looks) ~= "table" then return false end
+      providers[#providers + 1] = provider
+      for _, look in ipairs(provider.looks) do
+        local character = type(look.character) == "string" and look.character or nil
+        if type(look.key) == "string" and character and not provided[look.key] then
+          local label = tostring(look.label or look.key)
+          -- a label this character already has gets a + -Elvie
+          for _, entry in ipairs(foldersOf[character] or {}) do
+            if entry.label == label then label = label .. "+" end
+          end
+          local entry = { label = label, key = look.key }
+          provided[look.key] = { provider = provider, look = look }
+          addToCharacter(frontFoldersByCharacter, character, entry)
+          addToCharacter(battleFoldersByCharacter, character, { label = label, key = look.key })
+        end
+      end
+      sortLists()
+      mod.options:define(buildRows())
+      notifyProviders()
+      return true
+    end,
+  }
 
   -- The rival
   -- The rival's battle pics and walking sprite, written into the game's
@@ -603,6 +696,7 @@ function kris.init(mod)
     local key = type(change.key) == "string" and change.key or ""
     if key == "character" or key:sub(1, 15) == "frontSpriteFor_" then
       overworld = resolveOverworld()
+      notifyProviders()
     end
     if key == "rival" or key:sub(1, 14) == "rivalLookFor_" or key == "colorMode" then
       serial = serial + 1
@@ -804,7 +898,7 @@ function kris.init(mod)
     end
     rows[#rows + 1] = { key = "rival", label = "RIVAL", who = "rival", choices = rivalChoices }
     local rival = mod.options:get("rival")
-    local rivalFronts = rival and frontFoldersByCharacter[rival]
+    local rivalFronts = rival and ownLooks(frontFoldersByCharacter[rival])
     if rivalFronts and #rivalFronts > 1 then
       rows[#rows + 1] = { key = "rivalLookFor_" .. sanitizeKey(rival), label = "R.LOOK", who = "rival",
         choices = toChoicePairs(rivalFronts) }
@@ -821,6 +915,11 @@ function kris.init(mod)
     if character == nil or character == RIVAL_OFF or not foldersOf[character] then return nil end
     local selected = rival and resolveCharacterFolder(frontFoldersByCharacter, character, "rivalLookFor_")
       or (who == "back" and resolveBattleKey(character) or resolveFrontKey(character))
+    local entry = selected and provided[selected]
+    if entry then
+      local ok, preview = pcall(entry.provider.preview or function() end, selected)
+      return ok and type(preview) == "table" and preview or nil
+    end
     local chain = chainFor(character, selected)
     local variants = who == "back" and battleSpriteVariants or frontSpriteVariants
     local pic, walk, colors
@@ -848,7 +947,7 @@ function kris.init(mod)
       for _, entry in ipairs(foldersOf[character.key] or {}) do
         local label = entry.label == character.key and entry.label or (character.key .. ": " .. entry.label)
         out[#out + 1] = " " .. label
-        local credit = readMeta(entry.key).credit
+        local credit = provided[entry.key] and provided[entry.key].look.credit or readMeta(entry.key).credit
         if type(credit) == "string" then credit = { credit } end
         for _, line in ipairs(type(credit) == "table" and credit or {}) do
           if type(line) == "string" and line ~= "" then out[#out + 1] = "  " .. line end
