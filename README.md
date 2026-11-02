@@ -58,7 +58,9 @@ And its `meta.json` can optionally set any of these keys:
 * `nameChoices` — array of strings shown as name choices at the start of a new game (Gen 1 and Gold).
 * `genderMode` — one of `"boy"` (vanilla male text), `"girl"` (Crystal's re-gendered text), or `"enby"` (gender-neutral text).
 
-All of the above — the five overworld files and the three meta.json keys — apply only to whichever folder is resolved as the front sprite for the currently selected **CHARACTER** (the same one the title screen image uses), not to every folder at once. Anything a folder doesn't supply falls back to Crystal's defaults. Like the title screen sprite, all of this is resolved once when the mod loads, from whichever CHARACTER (and, if it has more than one look, FRONT SPRITE variant) is selected at that time — changing either mid-session won't update it without a restart.
+All of the above — the five overworld files and the three meta.json keys — start from whichever folder is resolved as the front sprite for the currently selected **CHARACTER** (the same one the title screen image uses). Anything that folder doesn't supply comes from the character's other folders, file by file, and then Crystal's defaults. The same goes for the front and battle sprites: a folder without one uses another folder of the same character before the game's own.
+
+The overworld sprites and their colours, the battle sprites and the trainer card follow your choice straight away. The title screen, name choices and `genderMode` (the re-gendered text) are set when the mod loads, so those need a restart after a change.
 
 ### Gen 2 trainer card portrait
 On Gold, Silver, and Crystal, a folder can also optionally include `trainerCard.png` (and `trainerCardColor.png` for the full color variant) — art purpose-built for the trainer card's 40x56 portrait box, drawn at native size and centered. If a folder doesn't provide one, the trainer card falls back to that folder's regular front sprite instead.

@@ -125,6 +125,32 @@ function kris.init(mod)
     return (s:gsub("%W", "_"))
   end
 
+  -- Every folder of each character, front and battle alike, in label
+  -- order: what a look falls back through, sheet by sheet. -Elvie
+  -- --------------------------------------------------
+  local foldersOf = {}
+  for _, byCharacter in ipairs({ frontFoldersByCharacter, battleFoldersByCharacter }) do
+    for character, entries in pairs(byCharacter) do
+      foldersOf[character] = foldersOf[character] or {}
+      for _, entry in ipairs(entries) do
+        local seen = false
+        for _, other in ipairs(foldersOf[character]) do seen = seen or other.key == entry.key end
+        if not seen then table.insert(foldersOf[character], entry) end
+      end
+    end
+  end
+  for _, entries in pairs(foldersOf) do table.sort(entries, byLabel) end
+
+  -- The selected folder first, then the character's others. -Elvie
+  local function chainFor(character, selected)
+    local chain = {}
+    if selected then chain[1] = selected end
+    for _, entry in ipairs(foldersOf[character] or {}) do
+      if entry.key ~= selected then chain[#chain + 1] = entry.key end
+    end
+    return chain
+  end
+
   -- Resolves which folder to actually use for the given character and
   -- asset type: the character's only folder if it has just one, or its
   -- own sub-option's current value if it has several. -Elvie
@@ -230,7 +256,11 @@ function kris.init(mod)
       return path
     end
 
-    local variant = selected and variants[selected] and variants[selected][colorMode]
+    -- the selected folder's pic, else the character's other folders' -Elvie
+    local variant
+    for _, key in ipairs(chainFor(character, selected)) do
+      variant = variant or (variants[key] and variants[key][colorMode])
+    end
 
     if variant then
       ctx.trueColor = variant.trueColor
@@ -276,9 +306,11 @@ function kris.init(mod)
   end
 
   -- Per-folder overworld, naming, and gender overrides
-  -- All follow whichever folder is resolved for the selected character's
-  -- front sprite, falling back to Crystal's defaults when a folder doesn't
-  -- define them. -Elvie
+  -- Names and gender (the text) follow whichever folder is resolved for
+  -- the selected character's front sprite, falling back to Crystal's
+  -- defaults when a folder doesn't define them, and are read once at
+  -- load: they need a restart. The overworld sprites and their colours
+  -- follow the current choice live (see below). -Elvie
   -- --------------------------------------------------
   local DEFAULT_NAME_CHOICES = {"KRIS", "AMANDA", "JUANA", "JODI"}
   local DEFAULT_GENDER_MODE = "girl"
@@ -297,34 +329,60 @@ function kris.init(mod)
   local overworldKey = resolveFrontKey(mod.options:get("character"))
   local overworldMeta = readMeta(overworldKey)
 
-  local CRYSTAL_COLORS = isColorTable(overworldMeta.overworldColors)
-    and overworldMeta.overworldColors or DEFAULT_CRYSTAL_COLORS
-
   local nameChoices = isNonEmptyStringArray(overworldMeta.nameChoices)
     and overworldMeta.nameChoices or DEFAULT_NAME_CHOICES
 
   local genderMode = (type(overworldMeta.genderMode) == "string" and VALID_GENDER_MODES[overworldMeta.genderMode])
     and overworldMeta.genderMode or DEFAULT_GENDER_MODE
 
-  -- Overworld sprite files, resolved per file with fallback to
-  -- Crystal's stock assets. -Elvie
+  -- Overworld sprite files and colours, resolved per file through the
+  -- character's folders (the front sprite's folder first), then Crystal's
+  -- stock assets. Rebuilt whenever the choice changes. -Elvie
   -- --------------------------------------------------
-  local function overworldAsset(name, fallback)
-    local variant = fileVariant(overworldKey, name, false)
-    return variant and mod.assets:path(variant.path) or mod.assets:path(fallback)
-  end
+  local OVERWORLD_FILES = {
+    walk = { "overworldWalk.png", "assets/overworld/crystalPlayer.png" },
+    bike = { "overworldBike.png", "assets/overworld/crystalBike.png" },
+    fishSide = { "overworldFishSide.png", "assets/overworld/crystalFishSide.png" },
+    fishFront = { "overworldFishFront.png", "assets/overworld/crystalFishFront.png" },
+    fishBack = { "overworldFishBack.png", "assets/overworld/crystalFishBack.png" },
+  }
 
-  local overworldWalk = overworldAsset("overworldWalk.png", "assets/overworld/crystalPlayer.png")
-  local overworldBike = overworldAsset("overworldBike.png", "assets/overworld/crystalBike.png")
-  local overworldFishSide = overworldAsset("overworldFishSide.png", "assets/overworld/crystalFishSide.png")
-  local overworldFishFront = overworldAsset("overworldFishFront.png", "assets/overworld/crystalFishFront.png")
-  local overworldFishBack = overworldAsset("overworldFishBack.png", "assets/overworld/crystalFishBack.png")
+  local serial = 0
+  local function resolveOverworld()
+    local character = mod.options:get("character")
+    local chain = chainFor(character, resolveFrontKey(character))
+    local state = { files = {}, colors = DEFAULT_CRYSTAL_COLORS }
+    for name, pair in pairs(OVERWORLD_FILES) do
+      for _, key in ipairs(chain) do
+        local variant = state.files[name] == nil and fileVariant(key, pair[1], false)
+        if variant then state.files[name] = mod.assets:path(variant.path) end
+      end
+      state.files[name] = state.files[name] or mod.assets:path(pair[2])
+    end
+    for i = #chain, 1, -1 do
+      local colors = readMeta(chain[i]).overworldColors
+      if isColorTable(colors) then state.colors = colors end
+    end
+    serial = serial + 1
+    state.group = "crystalPlayer" .. serial
+    return state
+  end
+  local overworld = resolveOverworld()
+
+  -- Kept for the sprite patches below, which set the starting sprites -Elvie
+  local overworldWalk = overworld.files.walk
+  local overworldBike = overworld.files.bike
+  local overworldFishSide = overworld.files.fishSide
+  local overworldFishFront = overworld.files.fishFront
+  local overworldFishBack = overworld.files.fishBack
 
   -- Intercepts the sprite renderer if the sprite is assigned a matching palette source and applies the CRYSTAL_COLORS palette to the sprite. 
   -- Hands the request back to the original sprite renderer if any other sprite.
+  -- The colours are the current choice's; the group changes with them so
+  -- the recolour cache doesn't keep the old ones. -Elvie
   PaletteFX.spriteObp = function(spriteDef, seed)
     if spriteDef and spriteDef.paletteSource == "PLAYER_PALETTE" then
-      return CRYSTAL_COLORS, "crystalPlayer"
+      return overworld.colors, overworld.group
       end
     
     if originalSpriteObp then
@@ -346,62 +404,72 @@ function kris.init(mod)
     local originalSpritePalette = Palettes.spritePalette
     Palettes.spritePalette = function(data, daytime, spriteDef, objDef)
       if spriteDef and spriteDef.paletteSource == "PLAYER_PALETTE" then
-        return CRYSTAL_COLORS
+        return overworld.colors
       end
       return originalSpritePalette(data, daytime, spriteDef, objDef)
     end
   end
-  
-    
-  -- Sprite replacements
-  -- RED
-  -- image/path values now come from overworldAsset above instead of
-  -- fixed paths, so a folder can override them. -Elvie
-  -- --------------------------
-  mod.content.sprites:patch("SPRITE_RED", {
-    image = overworldWalk,
-    trueColor = false,
-    paletteSource = "PLAYER_PALETTE"
-  })
-  
-  mod.content.sprites:patch("SPRITE_RED_BIKE", {
-    image = overworldBike,
-    trueColor = false,
-    paletteSource = "PLAYER_PALETTE"
-  })
-  
-  -- Gated on isGen2: the field registry has no Gen 2 target, so this
-  -- patch never applied there anyway -- this makes that boundary
-  -- explicit. Uses defaultFrontPath so it follows whichever character is
-  -- actually selected, not a fixed folder. -Elvie
-  if not isGen2 then
-    mod.content.field:patch("playerPics", {
-      front = defaultFrontPath()
-    })
 
-    mod.content.field:patch("overworldFx", {
-      redFishSide  = { path = overworldFishSide },
-      redFishFront = { path = overworldFishFront },
-      redFishBack  = { path = overworldFishBack },
-    })
+  -- Live overworld
+  -- The player is drawn with this mod's own renderers for the current
+  -- choice, swapped in for the draw and put back after, so a change in
+  -- the options shows straight away. -Elvie
+  -- -----------------------------------------
+  local SpriteRenderer = require("src.render.SpriteRenderer")
+  local renderers -- { walk, bike, serial } for the current choice -Elvie
+  local function rendererFor(kind)
+    if not renderers or renderers.serial ~= serial then
+      renderers = { serial = serial }
+    end
+    if renderers[kind] == nil then
+      local def = { id = kind == "bike" and "SPRITE_RED_BIKE" or "SPRITE_RED", image = overworld.files[kind],
+        frames = 6, walker = true, trueColor = false, paletteSource = "PLAYER_PALETTE" }
+      local ok, r = pcall(SpriteRenderer.new, def, "player")
+      if ok and r and isGen2 then r:setObjPalette(overworld.colors, overworld.group) end
+      renderers[kind] = ok and r or false
+    end
+    return renderers[kind] or nil
   end
 
-  -- Sprite replacements
-  -- GOLD
-  -- Same overworldWalk/overworldBike source as RED above. -Elvie
-  -- -------------------------
-  mod.content.sprites:patch("SPRITE_CHRIS", {
-    image = overworldWalk,
-    trueColor = false,
-    paletteSource = "PLAYER_PALETTE",
-  }) 
+  if isGen2 then
+    local Player = require("src.world.gen2.Player")
+    local KIND = { SPRITE_CHRIS = "walk", SPRITE_CHRIS_BIKE = "bike" }
+    local originalDraw = Player.draw
+    Player.draw = function(self, ...)
+      local id = type(self.spriteDef) == "table" and self.spriteDef.id
+      local r = KIND[id] and rendererFor(KIND[id])
+      if not r then return originalDraw(self, ...) end
+      local saved = self.sprite
+      self.sprite = r
+      local ok, err = pcall(originalDraw, self, ...)
+      self.sprite = saved
+      if not ok then error(err, 0) end
+    end
+  else
+    local Player = require("src.world.Player")
+    local originalDraw = Player.draw
+    Player.draw = function(self, ...)
+      local s1, s2, fish = self.sprite, self.bikeSprite, self.fishTiles
+      self.sprite = rendererFor("walk") or s1
+      self.bikeSprite = (s2 and rendererFor("bike")) or s2
+      if fish then
+        local f = overworld.files
+        self.fishTiles = { down = f.fishFront, up = f.fishBack, left = f.fishSide, right = f.fishSide }
+      end
+      local ok, err = pcall(originalDraw, self, ...)
+      self.sprite, self.bikeSprite, self.fishTiles = s1, s2, fish
+      if not ok then error(err, 0) end
+    end
+  end
 
-  mod.content.sprites:patch("SPRITE_CHRIS_BIKE", {
-    image = overworldBike,
-    trueColor = false,
-    paletteSource = "PLAYER_PALETTE",
-  })
-
+  mod.events:on("mod.options_changed", function(change)
+    if type(change) ~= "table" or change.mod ~= mod.id then return end
+    local key = type(change.key) == "string" and change.key or ""
+    if key == "character" or key:sub(1, 15) == "frontSpriteFor_" then
+      overworld = resolveOverworld()
+    end
+  end)
+    
   -- Gen 2 Trainer Card
   -- This can probably be simplified later when the field registry is available
   -- for gen 2.
@@ -435,13 +503,20 @@ function kris.init(mod)
       -- easy to swap back to scale-to-fill (boxW / iw, boxH / ih) if this
       -- looks worse in practice for art that isn't purpose-built. -Elvie
       -- -----------------------------------------------
+      -- The current choice, through the character's folders: the first
+      -- with a trainer card portrait, else the first with a front sprite. -Elvie
       local colorMode = mod.options:get("colorMode")
-      local dedicatedDmg = fileVariant(overworldKey, "trainerCard.png", false)
-      local dedicatedColor = fileVariant(overworldKey, "trainerCardColor.png", true)
-      local dedicated = (dedicatedDmg or dedicatedColor)
-        and { dmg = dedicatedDmg or dedicatedColor, fullColor = dedicatedColor or dedicatedDmg }
-      local portraitVariant = (dedicated and dedicated[colorMode])
-        or (frontSpriteVariants[overworldKey] and frontSpriteVariants[overworldKey][colorMode])
+      local character = mod.options:get("character")
+      local portraitVariant, frontVariant
+      for _, key in ipairs(chainFor(character, resolveFrontKey(character))) do
+        local dedicatedDmg = fileVariant(key, "trainerCard.png", false)
+        local dedicatedColor = fileVariant(key, "trainerCardColor.png", true)
+        local dedicated = (dedicatedDmg or dedicatedColor)
+          and { dmg = dedicatedDmg or dedicatedColor, fullColor = dedicatedColor or dedicatedDmg }
+        portraitVariant = portraitVariant or (dedicated and dedicated[colorMode])
+        frontVariant = frontVariant or (frontSpriteVariants[key] and frontSpriteVariants[key][colorMode])
+      end
+      portraitVariant = portraitVariant or frontVariant
 
       instance.drawPortrait = function()
         if not portraitVariant then return end
