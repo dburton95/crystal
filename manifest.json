@@ -14,8 +14,7 @@
   "incompatible": [],
   "experimental": false,
   "permissions": [
-    "engine_internals",
-    "network"
+    "engine_internals"
   ],
   "description": "A simple sprite replacement for trainer Red to look like Crystal from pokemon Crystal Version",
   "github": "dburton95/crystal",

@@ -6,7 +6,8 @@ function kris.init(mod)
   local isGen2 = GameVersion.generation(GameVersion.get()) == 2
 
   local PaletteFX = require("src.render.PaletteFX")
-  local Json = require("src.link.Json")
+  -- meta.json is read with the mod's own reader, so no network permission. -Elvie
+  local Json = require("mods.crystal.json")
   local originalSpriteObp = PaletteFX.spriteObp
   local advancedPack = assert(PaletteFX.gbcPack())
 
