@@ -280,11 +280,12 @@ function kris.init(mod)
 
   -- RIVAL: a character for Blue (Red/Blue/Yellow) or Silver (Gold/Silver/
   -- Crystal), with a RIVAL LOOK row when it has more than one front
-  -- sprite. OFF keeps the game's own rival. -Elvie
+  -- sprite. Another mod's looks can be the rival too; that mod draws them.
+  -- OFF keeps the game's own rival. -Elvie
   for i = #rivalChoices, 1, -1 do rivalChoices[i] = nil end
   table.insert(rivalChoices, { "OFF", RIVAL_OFF })
   for _, character in ipairs(characterChoices) do
-    if #ownLooks(frontFoldersByCharacter[character.key]) > 0 then
+    if frontFoldersByCharacter[character.key] and #frontFoldersByCharacter[character.key] > 0 then
       table.insert(rivalChoices, { character.label, character.key })
     end
   end
@@ -292,11 +293,12 @@ function kris.init(mod)
     key = "rival", type = "choice", label = "RIVAL", choices = rivalChoices, default = RIVAL_OFF,
   })
   for _, character in ipairs(characterChoices) do
-    local fronts = ownLooks(frontFoldersByCharacter[character.key])
+    local fronts = frontFoldersByCharacter[character.key] or {}
     if #fronts > 1 then
+      local own = ownLooks(fronts)
       table.insert(optionRows, {
         key = "rivalLookFor_" .. sanitizeKey(character.key), type = "choice", label = "RIVAL LOOK",
-        choices = toChoicePairs(fronts), default = defaultKey(fronts, "original"),
+        choices = toChoicePairs(fronts), default = defaultKey(#own > 0 and own or fronts, "original"),
         visible_if = { key = "rival", equals = character.key },
       })
     end
@@ -546,11 +548,14 @@ function kris.init(mod)
   --   { id, looks = { { key, character, label, credit } },
   --     configure = function(key) ... end, preview = function(key) ... end }
   -- configure gets the look's key while it's your front sprite, and nil
-  -- when it isn't, so that mod draws the player only then; preview
-  -- returns { pic = path } for the LENS screen. This mod stays in charge
-  -- of the choices. -Elvie
+  -- when it isn't, so that mod draws the player only then;
+  -- configureRival(key) is the same for the RIVAL (optional); preview
+  -- returns { pic = path, card = image } for the LENS screen and the Gen 2
+  -- trainer card. This mod stays in charge of the choices. -Elvie
   -- --------------------------------------------------
   local providers = {}
+  -- set with the rival below; another mod's looks can be the rival -Elvie
+  local rivalChanged = function() end
   local function notifyProviders()
     local current, key = providerNow()
     for _, provider in ipairs(providers) do
@@ -583,6 +588,7 @@ function kris.init(mod)
       sortLists()
       mod.options:define(buildRows())
       notifyProviders()
+      rivalChanged()
       return true
     end,
   }
@@ -629,8 +635,19 @@ function kris.init(mod)
     restoreRecords()
     local data = liveData()
     local character = mod.options:get("rival")
-    if not data or character == nil or character == RIVAL_OFF or not foldersOf[character] then return end
-    local selected = resolveCharacterFolder(frontFoldersByCharacter, character, "rivalLookFor_")
+    local picked = character ~= nil and character ~= RIVAL_OFF and foldersOf[character]
+      and resolveCharacterFolder(frontFoldersByCharacter, character, "rivalLookFor_") or nil
+    -- another mod's look: that mod writes the rival itself, after this
+    -- mod has put its own changes back -Elvie
+    local entry = picked and provided[picked]
+    for _, provider in ipairs(providers) do
+      if type(provider.configureRival) == "function" then
+        pcall(provider.configureRival, entry and entry.provider == provider and picked or nil)
+      end
+    end
+    if entry then return end
+    if not data or not picked then return end
+    local selected = picked
     local chain = chainFor(character, selected)
     local colorMode = mod.options:get("colorMode")
     local function pic(name)
@@ -670,6 +687,8 @@ function kris.init(mod)
     end
   end
 
+  rivalChanged = applyRival
+
   -- the rival's colours, the same way as the player's -Elvie
   local playerObp = PaletteFX.spriteObp
   PaletteFX.spriteObp = function(spriteDef, seed)
@@ -699,7 +718,7 @@ function kris.init(mod)
       overworld = resolveOverworld()
       notifyProviders()
     end
-    if key == "rival" or key:sub(1, 14) == "rivalLookFor_" or key == "colorMode" then
+    if key == "rival" or key:sub(1, 13) == "rivalLookFor_" or key == "colorMode" then
       serial = serial + 1
       applyRival()
     end
@@ -753,7 +772,24 @@ function kris.init(mod)
       end
       portraitVariant = portraitVariant or frontVariant
 
+      -- another mod's look: its card portrait, already fitted to the box -Elvie
+      local current, currentKey = providerNow()
+      local providedCard
+      if current and type(current.preview) == "function" then
+        local ok, preview = pcall(current.preview, currentKey)
+        providedCard = ok and type(preview) == "table" and preview.card or nil
+      end
+
       instance.drawPortrait = function()
+        if current then
+          if not providedCard then return end
+          local iw, ih = providedCard:getDimensions()
+          local x, y = 14 * 8 + math.floor((40 - iw) / 2), 1 * 8 + 56 - ih
+          if type(PaletteFX.markTrueColor) == "function" then pcall(PaletteFX.markTrueColor, x, y, iw, ih) end
+          love.graphics.setColor(1, 1, 1, 1)
+          love.graphics.draw(providedCard, x, y)
+          return
+        end
         if not portraitVariant then return end
         local image = mod.assets:image(portraitVariant.path)
         if not image then return end
@@ -899,7 +935,7 @@ function kris.init(mod)
     end
     rows[#rows + 1] = { key = "rival", label = "RIVAL", who = "rival", choices = rivalChoices }
     local rival = mod.options:get("rival")
-    local rivalFronts = rival and ownLooks(frontFoldersByCharacter[rival])
+    local rivalFronts = rival and frontFoldersByCharacter[rival]
     if rivalFronts and #rivalFronts > 1 then
       rows[#rows + 1] = { key = "rivalLookFor_" .. sanitizeKey(rival), label = "R.LOOK", who = "rival",
         choices = toChoicePairs(rivalFronts) }
