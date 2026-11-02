@@ -70,7 +70,9 @@ With [Emerald Lens](https://github.com/ElvieBlooms/emerald_lens) installed too, 
 Mods that want to add looks the same way can use this mod's `exports.lens.addLooks` (see the comment in `kris.lua`).
 
 ### The LENS screen
-**LENS** on the START menu (where **T. KRIS** used to be) opens the same choices as the mod options, for the game you're playing, with a preview of the look: its front sprite and walking sprite, in full colour. Up and down pick a row, left and right (or A) change it, and B closes it. **CREDITS** (press A) opens the mod's credits, followed by every look and its `credit` lines from `meta.json` (optional: a string or a list of strings naming the artists).
+**LENS** on the START menu (above MODS, or QUIT), or **CRYSTAL LENS** on the OPTION menu, opens the same choices as the mod options, for the game you're playing, with a preview of the look: its front sprite and walking sprite, in full colour. Up and down pick a row, left and right (or A) change it, and B closes it. **CREDITS** (press A) opens the mod's credits, followed by every look and its `credit` lines from `meta.json` (optional: a string or a list of strings naming the artists).
+
+With [Facets](https://github.com/ElvieBlooms/facets) installed too, the two share one **PRISM** item on both menus instead: a short list with CRYSTAL LENS first and FACETS under it, each with its gem and current setting. Picking one opens its screen, and B there comes back to the list. Emerald Lens joins the same way when it's installed without this mod.
 
 ### Gender and the rival
 * **GENDER** matters in Crystal, the one game with a choice. **LOOK** (the default) works as before: the boy/girl choice is skipped and your character replaces Chris. **MY SAVE** keeps the choice in a new game, and your character replaces whichever player the save picked, Chris or Kris.
