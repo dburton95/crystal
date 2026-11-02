@@ -735,9 +735,133 @@ function kris.init(mod)
   -- Hands the resolved config back to main.lua so it can choose
   -- girlMode, nbMode, or neither. -Elvie
   -- --------------------------------------------------
+  -- The LENS screen (lens.lua)
+  -- Its rows, read fresh each time it draws, set the way the mod options
+  -- screen sets them (ManagerState:setOption), so everything above
+  -- reacts the same; and what it previews. -Elvie
+  -- --------------------------------------------------
+  local function liveGame(game)
+    if type(game) == "table" then return game end
+    local ok, g = pcall(function() return mod.game end)
+    return ok and type(g) == "table" and g or nil
+  end
+
+  local function setOption(game, key, value)
+    local Runtime = package.loaded["src.mods.Runtime"]
+    if Runtime and Runtime.safeMode then return end
+    game = liveGame(game)
+    if not game then return end
+    if type(game.options) == "table" then
+      game.options.modOptions = game.options.modOptions or {}
+      game.options.modOptions[mod.id] = game.options.modOptions[mod.id] or {}
+      game.options.modOptions[mod.id][key] = value
+    end
+    local loader = game.mods
+    if type(loader) == "table" then
+      loader.modOptions = loader.modOptions or {}
+      loader.modOptions[mod.id] = loader.modOptions[mod.id] or {}
+      loader.modOptions[mod.id][key] = value
+    end
+    if type(game.writeOptions) == "function" then pcall(game.writeOptions, game) end
+    if type(loader) == "table" and loader.events then
+      loader.events:emit("mod.options_changed", { mod = mod.id, key = key, value = value })
+    end
+  end
+
+  local function valueOf(key, choices)
+    local value = mod.options:get(key)
+    for _, choice in ipairs(choices) do
+      if choice[2] == value then return value end
+    end
+    return choices[1] and choices[1][2]
+  end
+
+  local function hasKris()
+    local data = liveData()
+    local sprites = data and (data.gen2Sprites or data.sprites)
+    return type(sprites) == "table" and sprites.SPRITE_KRIS ~= nil
+  end
+
+  -- who: "player" or "rival", for the preview -Elvie
+  local function screenRows()
+    local rows = {}
+    local character = mod.options:get("character")
+    rows[#rows + 1] = { key = "character", label = "CHAR", who = "player", choices = toChoicePairs(characterChoices) }
+    local fronts, battles = frontFoldersByCharacter[character], battleFoldersByCharacter[character]
+    if fronts and #fronts > 1 then
+      rows[#rows + 1] = { key = "frontSpriteFor_" .. sanitizeKey(character), label = "FRONT", who = "player",
+        choices = toChoicePairs(fronts) }
+    end
+    if battles and #battles > 1 then
+      rows[#rows + 1] = { key = "battleSpriteFor_" .. sanitizeKey(character), label = "BATTLE", who = "back",
+        choices = toChoicePairs(battles) }
+    end
+    rows[#rows + 1] = { key = "colorMode", label = "COLOR", who = "player",
+      choices = { { "DMG", "dmg" }, { "FULL", "fullColor" } } }
+    if hasKris() then
+      rows[#rows + 1] = { key = "gender", label = "GENDER", who = "player",
+        choices = { { "LOOK", "look" }, { "MY SAVE", "save" } } }
+    end
+    rows[#rows + 1] = { key = "rival", label = "RIVAL", who = "rival", choices = rivalChoices }
+    local rival = mod.options:get("rival")
+    local rivalFronts = rival and frontFoldersByCharacter[rival]
+    if rivalFronts and #rivalFronts > 1 then
+      rows[#rows + 1] = { key = "rivalLookFor_" .. sanitizeKey(rival), label = "R.LOOK", who = "rival",
+        choices = toChoicePairs(rivalFronts) }
+    end
+    for _, row in ipairs(rows) do row.value = valueOf(row.key, row.choices) end
+    rows[#rows + 1] = { key = "credits", label = "CREDITS", page = true, valueLabel = "SEE ALL" }
+    return rows
+  end
+
+  -- The pics and walking sprite to show: full colour, through the chain -Elvie
+  local function screenPreview(who)
+    local rival = who == "rival"
+    local character = mod.options:get(rival and "rival" or "character")
+    if character == nil or character == RIVAL_OFF or not foldersOf[character] then return nil end
+    local selected = rival and resolveCharacterFolder(frontFoldersByCharacter, character, "rivalLookFor_")
+      or (who == "back" and resolveBattleKey(character) or resolveFrontKey(character))
+    local chain = chainFor(character, selected)
+    local variants = who == "back" and battleSpriteVariants or frontSpriteVariants
+    local pic, walk, colors
+    for _, key in ipairs(chain) do
+      local v = variants[key] and variants[key].fullColor
+      pic = pic or (v and mod.assets:path(v.path))
+      local w = fileVariant(key, "overworldWalk.png", false)
+      walk = walk or (w and mod.assets:path(w.path))
+    end
+    if rival then
+      colors = rivalColors
+    else
+      walk, colors = overworld.files.walk, overworld.colors
+    end
+    return { pic = pic, walk = walk, colors = colors }
+  end
+
+  local CREDITS = require("mods.crystal.credits").LINES
+  local function screenCredits()
+    local out = {}
+    for _, line in ipairs(CREDITS) do out[#out + 1] = line end
+    out[#out + 1] = ""
+    out[#out + 1] = "LOOKS"
+    for _, character in ipairs(characterChoices) do
+      for _, entry in ipairs(foldersOf[character.key] or {}) do
+        local label = entry.label == character.key and entry.label or (character.key .. ": " .. entry.label)
+        out[#out + 1] = " " .. label
+        local credit = readMeta(entry.key).credit
+        if type(credit) == "string" then credit = { credit } end
+        for _, line in ipairs(type(credit) == "table" and credit or {}) do
+          if type(line) == "string" and line ~= "" then out[#out + 1] = "  " .. line end
+        end
+      end
+    end
+    return out
+  end
+
   return {
     nameChoices = nameChoices,
     genderMode = genderMode,
+    lens = { rows = screenRows, set = setOption, preview = screenPreview, credits = screenCredits },
   }
 
 end
