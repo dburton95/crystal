@@ -548,7 +548,8 @@ function kris.init(mod)
   --   { id, looks = { { key, character, label, credit, folder } },
   --     configure = function(key) ... end, preview = function(key) ... end }
   -- configure gets the look's key while it's your front sprite, and nil
-  -- when it isn't, so that mod draws the player only then;
+  -- when it isn't, so that mod draws the player only then, plus
+  -- { colorMode } (COLOR PALETTE: "dmg" or "fullColor");
   -- configureRival(key) is the same for the RIVAL (optional); preview
   -- returns { pic = path, card = image } for the LENS screen and the Gen 2
   -- trainer card. This mod stays in charge of the choices. -Elvie
@@ -560,7 +561,7 @@ function kris.init(mod)
     local current, key = providerNow()
     for _, provider in ipairs(providers) do
       if type(provider.configure) == "function" then
-        pcall(provider.configure, provider == current and key or nil)
+        pcall(provider.configure, provider == current and key or nil, { colorMode = mod.options:get("colorMode") })
       end
     end
   end
@@ -646,7 +647,8 @@ function kris.init(mod)
     local entry = picked and provided[picked]
     for _, provider in ipairs(providers) do
       if type(provider.configureRival) == "function" then
-        pcall(provider.configureRival, entry and entry.provider == provider and picked or nil)
+        pcall(provider.configureRival, entry and entry.provider == provider and picked or nil,
+          { colorMode = mod.options:get("colorMode") })
       end
     end
     if entry then return end
@@ -718,6 +720,8 @@ function kris.init(mod)
   mod.events:on("mod.options_changed", function(change)
     if type(change) ~= "table" or change.mod ~= mod.id then return end
     local key = type(change.key) == "string" and change.key or ""
+    -- COLOR PALETTE reaches another mod's looks too -Elvie
+    if key == "colorMode" then notifyProviders() end
     if key == "character" or key:sub(1, 15) == "frontSpriteFor_" then
       overworld = resolveOverworld()
       notifyProviders()
