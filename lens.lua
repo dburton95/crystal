@@ -147,6 +147,18 @@ function lens.init(mod, api)
             trueColor(x, y, w, h)
             love.graphics.draw(pic, x, y)
           end
+          local full = preview.walkFull and image(preview.walkFull)
+          if full then
+            -- another mod's Gen 3 walking sprite, in its own colours:
+            -- standing, then a step (frames 0 and 3), feet on the same line -Elvie
+            local w, h = full:getDimensions()
+            local fw = math.min(w, 32)
+            local frame = math.floor(self.clock * 2) % 2 == 0 and 0 or 3
+            local quad = love.graphics.newQuad(0, frame * 32, fw, 32, w, h)
+            local x = WALK_X - math.floor((fw - 16) / 2)
+            trueColor(x, WALK_Y - 16, fw, 32)
+            love.graphics.draw(full, quad, x, WALK_Y - 16)
+          end
           local walk = walkImage(preview.walk, preview.colors)
           if walk then
             -- standing down, then a step, as on the map -Elvie

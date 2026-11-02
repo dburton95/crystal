@@ -545,7 +545,7 @@ function kris.init(mod)
   -- Looks from another mod
   -- exports.lens.addLooks(provider) adds another mod's looks to the
   -- lists (Emerald Lens adds its Gen 3 and 4 looks). provider is
-  --   { id, looks = { { key, character, label, credit } },
+  --   { id, looks = { { key, character, label, credit, folder } },
   --     configure = function(key) ... end, preview = function(key) ... end }
   -- configure gets the look's key while it's your front sprite, and nil
   -- when it isn't, so that mod draws the player only then;
@@ -573,7 +573,11 @@ function kris.init(mod)
       providers[#providers + 1] = provider
       for _, look in ipairs(provider.looks) do
         local character = type(look.character) == "string" and look.character or nil
-        if type(look.key) == "string" and character and not provided[look.key] then
+        -- a folder this mod has itself (a Game Boy look copied into the
+        -- other mod) is left out, so it isn't listed twice -Elvie
+        local own = type(look.folder) == "string"
+          and (frontSpriteVariants[look.folder] or battleSpriteVariants[look.folder])
+        if type(look.key) == "string" and character and not provided[look.key] and not own then
           local label = tostring(look.label or look.key)
           -- a label this character already has gets a + -Elvie
           for _, entry in ipairs(foldersOf[character] or {}) do
