@@ -62,6 +62,12 @@ All of the above — the five overworld files and the three meta.json keys — s
 
 The overworld sprites and their colours, the battle sprites and the trainer card follow your choice straight away. The title screen, name choices and `genderMode` (the re-gendered text) are set when the mod loads, so those need a restart after a change.
 
+### Gender and the rival
+* **GENDER** matters in Crystal, the one game with a choice. **LOOK** (the default) works as before: the boy/girl choice is skipped and your character replaces Chris. **MY SAVE** keeps the choice in a new game, and your character replaces whichever player the save picked, Chris or Kris.
+* **RIVAL** picks a character for Blue (Red/Blue/Yellow) or Silver (Gold/Silver/Crystal), with a **RIVAL LOOK** row when it has more than one front sprite. **OFF** keeps the game's own rival.
+  * Battle pics: a folder's `rivalEarly.png`, `rivalLate.png` and `rivalChampion.png` (and their `Color` versions) for the rival's battles in order (Gen 1 has three, Gen 2 two), or else its front sprite. Each falls back through the character's folders like the player's.
+  * Walking: `overworldWalk.png` from the character's folders, coloured with its `overworldColors`; a rival character without one keeps the game's walking sprite. It changes when you next enter a map.
+
 ### Gen 2 trainer card portrait
 On Gold, Silver, and Crystal, a folder can also optionally include `trainerCard.png` (and `trainerCardColor.png` for the full color variant) — art purpose-built for the trainer card's 40x56 portrait box, drawn at native size and centered. If a folder doesn't provide one, the trainer card falls back to that folder's regular front sprite instead.
 

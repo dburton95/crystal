@@ -234,6 +234,34 @@ function kris.init(mod)
       default = "dmg"
   })
 
+  -- GENDER (Crystal): the look's own way, where the boy/girl choice is
+  -- skipped and the look replaces Chris, or MY SAVE, where the choice
+  -- stays and the look replaces whichever player the save picks. -Elvie
+  table.insert(optionRows, {
+    key = "gender", type = "choice", label = "GENDER",
+    choices = { { "LOOK", "look" }, { "MY SAVE", "save" } }, default = "look",
+  })
+
+  -- RIVAL: a character for Blue (Red/Blue/Yellow) or Silver (Gold/Silver/
+  -- Crystal), with a RIVAL LOOK row when it has more than one front
+  -- sprite. OFF keeps the game's own rival. -Elvie
+  local RIVAL_OFF = "_off"
+  local rivalChoices = toChoicePairs(characterChoices)
+  table.insert(rivalChoices, 1, { "OFF", RIVAL_OFF })
+  table.insert(optionRows, {
+    key = "rival", type = "choice", label = "RIVAL", choices = rivalChoices, default = RIVAL_OFF,
+  })
+  for _, character in ipairs(characterChoices) do
+    local fronts = frontFoldersByCharacter[character.key]
+    if fronts and #fronts > 1 then
+      table.insert(optionRows, {
+        key = "rivalLookFor_" .. sanitizeKey(character.key), type = "choice", label = "RIVAL LOOK",
+        choices = toChoicePairs(fronts), default = defaultKey(fronts, "original"),
+        visible_if = { key = "rival", equals = character.key },
+      })
+    end
+  end
+
   mod.options:define(optionRows)
 
   -- Assign player sprite based on mod options
@@ -434,10 +462,13 @@ function kris.init(mod)
   if isGen2 then
     local Player = require("src.world.gen2.Player")
     local KIND = { SPRITE_CHRIS = "walk", SPRITE_CHRIS_BIKE = "bike" }
+    -- with GENDER on MY SAVE, Kris too -Elvie
+    local KRIS = { SPRITE_KRIS = "walk", SPRITE_KRIS_BIKE = "bike" }
     local originalDraw = Player.draw
     Player.draw = function(self, ...)
       local id = type(self.spriteDef) == "table" and self.spriteDef.id
-      local r = KIND[id] and rendererFor(KIND[id])
+      local kind = KIND[id] or (mod.options:get("gender") == "save" and KRIS[id])
+      local r = kind and rendererFor(kind)
       if not r then return originalDraw(self, ...) end
       local saved = self.sprite
       self.sprite = r
@@ -462,11 +493,120 @@ function kris.init(mod)
     end
   end
 
+  -- The rival
+  -- The rival's battle pics and walking sprite, written into the game's
+  -- own trainer and sprite records (the originals are kept to put back).
+  -- Pics: rivalEarly.png, rivalLate.png and rivalChampion.png (each with a
+  -- Color version) where a folder has them, else its front sprite. The
+  -- walking sprite needs overworldWalk.png somewhere in the character's
+  -- folders, coloured with its overworldColors; it changes on the next
+  -- map, as the game sets up who's on a map when you enter it. -Elvie
+  -- --------------------------------------------------
+  -- Gen 1: OPP_RIVAL1-3 in data.trainers; Gen 2: RIVAL1-2 in
+  -- data.gen2Trainers.classes, whose pic wins over the menu_gfx one -Elvie
+  local RIVAL_PICS = isGen2
+    and { { "RIVAL1", "rivalEarly" }, { "RIVAL2", "rivalLate" } }
+    or { { "OPP_RIVAL1", "rivalEarly" }, { "OPP_RIVAL2", "rivalLate" }, { "OPP_RIVAL3", "rivalChampion" } }
+  local RIVAL_SPRITE = isGen2 and "SPRITE_RIVAL" or "SPRITE_BLUE"
+  local rivalColors = DEFAULT_CRYSTAL_COLORS
+  local savedRecords = {} -- [record] = { field = original } -Elvie
+
+  local function liveData()
+    local ok, game = pcall(function() return mod.game end)
+    return ok and type(game) == "table" and type(game.data) == "table" and game.data or nil
+  end
+
+  local function setField(record, field, value)
+    savedRecords[record] = savedRecords[record] or {}
+    if savedRecords[record][field] == nil then
+      savedRecords[record][field] = { value = record[field] }
+    end
+    record[field] = value
+  end
+
+  local function restoreRecords()
+    for record, fields in pairs(savedRecords) do
+      for field, old in pairs(fields) do record[field] = old.value end
+    end
+    savedRecords = {}
+  end
+
+  local function applyRival()
+    restoreRecords()
+    local data = liveData()
+    local character = mod.options:get("rival")
+    if not data or character == nil or character == RIVAL_OFF or not foldersOf[character] then return end
+    local selected = resolveCharacterFolder(frontFoldersByCharacter, character, "rivalLookFor_")
+    local chain = chainFor(character, selected)
+    local colorMode = mod.options:get("colorMode")
+    local function pic(name)
+      for _, key in ipairs(chain) do
+        local dmg, color = fileVariant(key, name .. ".png", false), fileVariant(key, name .. "Color.png", true)
+        local variant = (dmg or color) and ({ dmg = dmg or color, fullColor = color or dmg })[colorMode]
+        if variant then return variant end
+      end
+      for _, key in ipairs(chain) do
+        local variant = frontSpriteVariants[key] and frontSpriteVariants[key][colorMode]
+        if variant then return variant end
+      end
+      return nil
+    end
+    local records = isGen2 and data.gen2Trainers and data.gen2Trainers.classes or data.trainers
+    for _, pair in ipairs(RIVAL_PICS) do
+      local record = type(records) == "table" and records[pair[1]]
+      local variant = pic(pair[2])
+      if type(record) == "table" and variant then
+        setField(record, "pic", mod.assets:path(variant.path))
+        setField(record, "trueColor", variant.trueColor and true or false)
+      end
+    end
+    local sprites = isGen2 and data.gen2Sprites or data.sprites
+    local sprite = type(sprites) == "table" and sprites[RIVAL_SPRITE]
+    local walk
+    for _, key in ipairs(chain) do walk = walk or fileVariant(key, "overworldWalk.png", false) end
+    if type(sprite) == "table" and walk then
+      rivalColors = DEFAULT_CRYSTAL_COLORS
+      for i = #chain, 1, -1 do
+        local colors = readMeta(chain[i]).overworldColors
+        if isColorTable(colors) then rivalColors = colors end
+      end
+      setField(sprite, "image", mod.assets:path(walk.path))
+      setField(sprite, "trueColor", false)
+      setField(sprite, "paletteSource", "RIVAL_PALETTE")
+    end
+  end
+
+  -- the rival's colours, the same way as the player's -Elvie
+  local playerObp = PaletteFX.spriteObp
+  PaletteFX.spriteObp = function(spriteDef, seed)
+    if spriteDef and spriteDef.paletteSource == "RIVAL_PALETTE" then
+      return rivalColors, "crystalRival" .. serial
+    end
+    return playerObp(spriteDef, seed)
+  end
+  if isGen2 then
+    local Palettes = require("src.world.gen2.Palettes")
+    local playerPalette = Palettes.spritePalette
+    Palettes.spritePalette = function(data, daytime, spriteDef, objDef)
+      if spriteDef and spriteDef.paletteSource == "RIVAL_PALETTE" then return rivalColors end
+      return playerPalette(data, daytime, spriteDef, objDef)
+    end
+  end
+
+  mod.events:on("game.ready", function()
+    savedRecords = {}
+    applyRival()
+  end)
+
   mod.events:on("mod.options_changed", function(change)
     if type(change) ~= "table" or change.mod ~= mod.id then return end
     local key = type(change.key) == "string" and change.key or ""
     if key == "character" or key:sub(1, 15) == "frontSpriteFor_" then
       overworld = resolveOverworld()
+    end
+    if key == "rival" or key:sub(1, 14) == "rivalLookFor_" or key == "colorMode" then
+      serial = serial + 1
+      applyRival()
     end
   end)
     
@@ -573,6 +713,8 @@ function kris.init(mod)
   -- --------------------------------------------------
   mod.hooks:wrap("intro.oak_speech.build", function(next, steps, speech)
     steps = next(steps, speech)
+    -- GENDER on MY SAVE keeps the choice -Elvie
+    if mod.options:get("gender") == "save" then return steps end
     return mod.ui.removeStep(steps, "gender_select")
   end)
 
