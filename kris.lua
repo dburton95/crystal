@@ -682,6 +682,11 @@ function kris.init(mod)
     if not data or not picked then return end
     local selected = picked
     local chain = chainFor(character, selected)
+    -- he, she or they in the lines about the rival, by the look's
+    -- genderMode (rival_text.lua, shared with Emerald Lens) -Elvie
+    local rivalMeta = readMeta(selected)
+    local rivalGender = VALID_GENDER_MODES[rivalMeta.genderMode] and rivalMeta.genderMode or DEFAULT_GENDER_MODE
+    require("mods.crystal.rival_text").apply(data, isGen2 and 2 or 1, rivalGender, setField)
     local colorMode = mod.options:get("colorMode")
     local function pic(name)
       for _, key in ipairs(chain) do

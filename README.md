@@ -79,6 +79,7 @@ With [Facets](https://github.com/ElvieBlooms/facets) installed too, the two shar
 * **RIVAL** picks a character for Blue (Red/Blue/Yellow) or Silver (Gold/Silver/Crystal), with a **RIVAL LOOK** row when it has more than one front sprite. **OFF** keeps the game's own rival.
   * Battle pics: a folder's `rivalEarly.png`, `rivalLate.png` and `rivalChampion.png` (and their `Color` versions) for the rival's battles in order (Gen 1 has three, Gen 2 two), or else its front sprite. Each falls back through the character's folders like the player's.
   * Walking: `overworldWalk.png` from the character's folders, coloured with its `overworldColors`; a rival character without one keeps the game's walking sprite. It changes when you next enter a map.
+  * Text: the lines about the rival follow the RIVAL LOOK's `genderMode`: Oak's grandson becomes his granddaughter (girl) or grandchild (enby), and he becomes she or they, in Oak's intro, Lance's speech and Gold/Silver/Crystal's lines about the thief. Those lines also stop describing Silver's long red hair, whatever the look. It changes straight away; **OFF** keeps the game's own text. The same file does this in Emerald Lens (`rival_text.lua`).
 
 ### Gen 2 trainer card portrait
 On Gold, Silver, and Crystal, a folder can also optionally include `trainerCard.png` (and `trainerCardColor.png` for the full color variant) — art purpose-built for the trainer card's 40x56 portrait box, drawn at native size and centered. If a folder doesn't provide one, the trainer card falls back to that folder's regular front sprite instead.
