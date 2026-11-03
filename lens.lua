@@ -1,10 +1,11 @@
 -- The LENS screen
--- LENS on the START menu (in place of the old T. KRIS credits item)
--- opens a screen with the mod's choices for this game and a preview of
--- the look: its front sprite and walking sprite, in full colour. Up and
--- down pick a row, left and right (or A) change it, B closes it. The
--- CREDITS row opens the mod's credits and every look's. Changes are the
--- same as in the mod options and apply straight away. -Elvie
+-- LENS on the START menu (in place of the old T. KRIS credits item), or
+-- CRYSTAL LENS on the OPTION menu, opens a screen with the mod's choices
+-- for this game and a preview of the look: its front sprite and walking
+-- sprite, in full colour. Up and down pick a row, left and right (or A)
+-- change it, B closes it. The CREDITS row opens the mod's credits and
+-- every look's. Changes are the same as in the mod options and apply
+-- straight away. -Elvie
 -- --------------------------------------------------
 
 local lens = {}
@@ -146,6 +147,18 @@ function lens.init(mod, api)
             trueColor(x, y, w, h)
             love.graphics.draw(pic, x, y)
           end
+          local full = preview.walkFull and image(preview.walkFull)
+          if full then
+            -- another mod's Gen 3 walking sprite, in its own colours:
+            -- standing, then a step (frames 0 and 3), feet on the same line -Elvie
+            local w, h = full:getDimensions()
+            local fw = math.min(w, 32)
+            local frame = math.floor(self.clock * 2) % 2 == 0 and 0 or 3
+            local quad = love.graphics.newQuad(0, frame * 32, fw, 32, w, h)
+            local x = WALK_X - math.floor((fw - 16) / 2)
+            trueColor(x, WALK_Y - 16, fw, 32)
+            love.graphics.draw(full, quad, x, WALK_Y - 16)
+          end
           local walk = walkImage(preview.walk, preview.colors)
           if walk then
             -- standing down, then a step, as on the map -Elvie
@@ -163,13 +176,39 @@ function lens.init(mod, api)
     end,
   })
 
-  -- LENS on the START menu, before QUIT -Elvie
+  -- START and OPTION menus through prism.lua, shared with Emerald Lens and
+  -- Facets: on its own it's LENS on START and CRYSTAL LENS on OPTION; with
+  -- another visuals mod they share one PRISM item, the lens first -Elvie
+  local prism = require("mods.crystal.prism")
+  local prismScreen = prism.registerGb(mod)
+  local entry = { id = "crystal_lens", label = "CRYSTAL LENS", short = "LENS",
+    about = "The look of you and your rival.",
+    colour = { 96, 168, 216 }, -- crystal blue -Elvie
+    order = 10,
+    value = function()
+      local row = api.rows()[1]
+      if not row then return "" end
+      for _, choice in ipairs(row.choices or {}) do
+        if choice[2] == row.value then return choice[1] end
+      end
+      return tostring(row.value or "")
+    end,
+    open = function(game) mod.ui.push(game, "crystal_lens") end,
+  }
+  local function liveGame(game)
+    if type(game) == "table" then return game end
+    local ok, g = pcall(function() return mod.game end)
+    return ok and type(g) == "table" and g or nil
+  end
   mod.hooks:wrap("ui.start_menu.items", function(nextFn, game, items)
-    mod.ui.insertBefore(items, "QUIT", {
-      label = "LENS",
-      onSelect = function() mod.ui.push(game, "crystal_lens") end,
-    })
-    return nextFn(game, items)
+    local out = nextFn(game, items)
+    if type(out) ~= "table" then return out end
+    return prism.addStartGb(mod, out, entry, liveGame(game), prismScreen)
+  end)
+  mod.hooks:wrap("ui.options.rows", function(nextFn, game, rows)
+    local out = nextFn(game, rows)
+    if type(out) ~= "table" then return out end
+    return prism.addOptionGb(mod, out, entry, liveGame(game), prismScreen)
   end)
 end
 

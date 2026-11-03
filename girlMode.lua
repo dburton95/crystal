@@ -37,7 +37,7 @@ function girlMode.init(mod)
     ["26:5891"] = "Lassie! If you can\ndefeat all the\012KIMONO GIRLS, I'll\ngive you a gift.",
     ["6a:7759"] = "Yo!\012… Huh? It's over\nalready?\012Sorry, sorry!\012CINNABAR GYM was\ngone, so I didn't\012know where to find\nyou.\012But, hey, you're\nplenty strong even\012without my advice.\nI knew you'd win!",
     ["66:6cd2"] = "Hold it there,\nkiddo!\012The toll is ¥1000\nto go through.",
-    ["66:6d0a"] = "Thank you very much!",
+    ["66:6d0a"] = "Thank you very\nmuch!",
     ["63:5f93"] = "The SLOWPOKE came\nback, and you even\011found FARFETCH'D.\012You're the cool-\nest, lady!",
     ["1a:5ddd"] = "Excuse me, kid!\nCan you do a guy\011a favor?\012Can you take this\nPOKéMON with MAIL\011to my friend?\012He's on ROUTE 31.",
     ["1a:5e48"] = "You will? Perfect!\nThanks, kid!\012My pal's a chubby\nguy who snoozes\011all the time.\012You'll recognize\nhim right away!",
@@ -55,7 +55,7 @@ function girlMode.init(mod)
     ["1d:5bbd"] = "Ooh, wow. You're\ntough!",
     ["1d:6284"] = "Grandpa, here I\nam! I was playing\012with the CAPTAIN\nand this big girl!",
     ["1d:687b"] = "Hey, lady. Could I\nget you to look\011for my buddy?\012He's goofing off\nsomewhere, that\011lazy bum!\012I want to go find\nhim, but I'm on\011duty right now.",
-    ["26:6a7b"] = "BLUE: Yo! Finally\ngot here, huh?\012I wasn't in the\nmood at CINNABAR,\012but now I'm ready\nto battle you.\012…\012You're telling me\nyou conquered all\011the GYMS in JOHTO?\012Heh! JOHTO's GYMS\nmust be pretty\011pathetic then.\012Hey, don't worry\nabout it.\012I'll know if you\nare good or not by\012battling you right\nnow.\012Ready, JOHTO CHAMP?",
+    ["26:6a7b"] = "BLUE: Yo! Finally\ngot here, huh?\012I wasn't in the\nmood at CINNABAR,\012but now I'm ready\nto battle you.\012…\012You're telling me\nyou conquered all\011the GYMS in JOHTO?\012Heh! JOHTO's GYMS\nmust be pretty\011pathetic then.\012Hey, don't worry\nabout it.\012I'll know if you\nare good or not by\012battling you right\nnow.\012Ready, JOHTO\nCHAMP?",
     ["26:751d"] = "I'm sorry.\nThis would be your\012second time today.\nYou're permitted\012to enter just once\na day.",
     ["62:6917"] = "May I see your\nrail PASS, please?\012OK. Right this\nway, please.",
     ["4b:4ff1"] = "Whoa! You've\ngot more zip.",
@@ -85,7 +85,7 @@ function girlMode.init(mod)
     ["4c:5009"] = "A young girl like\nyou should swim.\012Don't SURF on your\nPOKéMON.",    
     ["49:4b65"] = "Hiya, kid! I\nsee you're new in\011MAHOGANY TOWN.\012Since you're new,\nyou should try a\012yummy RAGECANDY-\nBAR!\012Right now, it can\nbe yours for just\011¥300! Want one?",    
     ["53:5ca8"] = "Hold it there,\nkiddo!\012The toll is ¥1000\nto go through.",    
-    ["53:5ce1"] = "Thank you very much!",    
+    ["53:5ce1"] = "Thank you very\nmuch!",    
     ["5a:5d51"] = "LANCE: It's been a\nlong time since I\011last came here.\012This is where we\nhonor the LEAGUE\012CHAMPIONS for all\neternity.\012Their courageous\nPOKéMON are also\011inducted.\012Here today, we\nwitnessed the rise\012of a new LEAGUE\nCHAMPION--a\012trainer who feels\ncompassion for,\012and trust in, her\nPOKéMON.\012A trainer who\nsucceeded through\012perseverance and\ndetermination.\012The new LEAGUE\nCHAMPION who has\012all the makings\nof greatness!\012{PLAYER}, allow me\nto register you\012and your partners\nas CHAMPIONS!",    
     ["5b:4238"] = "May I see your\nS.S.TICKET?",    
     ["5b:46f3"] = "May I see your\nS.S.TICKET?",    
@@ -100,7 +100,7 @@ function girlMode.init(mod)
     ["59:4d8a"] = "SURGE: Arrrgh!\nYou are strong!\012OK, kid. You get\nTHUNDERBADGE!",    
     ["5f:4af7"] = "I'm sorry.\nThis would be your\012second time today.\nYou're permitted\012to enter just once\na day.",    
     ["53:53cb"] = "Yo!\012… Huh? It's over\nalready?\012Sorry, sorry!\012CINNABAR GYM was\ngone, so I didn't\012know where to find\nyou.\012But, hey, you're\nplenty strong even\012without my advice.\nI knew you'd win!",    
-    ["5f:4057"] = "BLUE: Yo! Finally\ngot here, huh?\012I wasn't in the\nmood at CINNABAR,\012but now I'm ready\nto battle you.\012…\012You're telling me\nyou conquered all\011the GYMS in JOHTO?\012Heh! JOHTO's GYMS\nmust be pretty\011pathetic then.\012Hey, don't worry\nabout it.\012I'll know if you\nare good or not by\012battling you right\nnow.\012Ready, JOHTO CHAMP?",    
+    ["5f:4057"] = "BLUE: Yo! Finally\ngot here, huh?\012I wasn't in the\nmood at CINNABAR,\012but now I'm ready\nto battle you.\012…\012You're telling me\nyou conquered all\011the GYMS in JOHTO?\012Heh! JOHTO's GYMS\nmust be pretty\011pathetic then.\012Hey, don't worry\nabout it.\012I'll know if you\nare good or not by\012battling you right\nnow.\012Ready, JOHTO\nCHAMP?",    
   }
 
   for label, text in pairs(textChanges) do
