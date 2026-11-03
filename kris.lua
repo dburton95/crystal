@@ -410,6 +410,25 @@ function kris.init(mod)
   local genderMode = (type(overworldMeta.genderMode) == "string" and VALID_GENDER_MODES[overworldMeta.genderMode])
     and overworldMeta.genderMode or DEFAULT_GENDER_MODE
 
+  -- Another mod's look (see addLooks below) isn't known yet at this
+  -- point, and its meta.json is in that mod's folder, so the gender it
+  -- had when last picked is kept in this mod's cache: its key, character
+  -- and gender, a line each. It's used while that look is still the
+  -- pick. -Elvie
+  local PROVIDED_GENDER = "provided_gender.txt"
+  local cache = type(mod.cache) == "table" and mod.cache or nil
+  do
+    local character = mod.options:get("character")
+    local ok, text = false, nil
+    if cache then ok, text = pcall(cache.read, cache, PROVIDED_GENDER) end
+    local key, who, mode = (ok and type(text) == "string" and text or ""):match("^([^\n]+)\n([^\n]+)\n(%a+)")
+    local picked = character and mod.options:get("frontSpriteFor_" .. sanitizeKey(character))
+    if key and who == character and VALID_GENDER_MODES[mode]
+        and (picked == key or not frontFoldersByCharacter[character]) then
+      genderMode = mode
+    end
+  end
+
   -- Overworld sprite files and colours, resolved per file through the
   -- character's folders (the front sprite's folder first), then Crystal's
   -- stock assets. Rebuilt whenever the choice changes. -Elvie
@@ -562,6 +581,16 @@ function kris.init(mod)
       if type(provider.configure) == "function" then
         pcall(provider.configure, provider == current and key or nil)
       end
+    end
+    -- the picked look's gender, for the text after a restart (see
+    -- PROVIDED_GENDER above); gone again with this mod's own look -Elvie
+    local look = key and provided[key] and provided[key].look
+    if not cache then return end
+    if look and VALID_GENDER_MODES[look.genderMode] then
+      pcall(cache.write, cache, PROVIDED_GENDER,
+        key .. "\n" .. tostring(mod.options:get("character")) .. "\n" .. look.genderMode)
+    else
+      pcall(cache.delete, cache, PROVIDED_GENDER)
     end
   end
 
