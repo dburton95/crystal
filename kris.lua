@@ -280,11 +280,12 @@ function kris.init(mod)
 
   -- RIVAL: a character for Blue (Red/Blue/Yellow) or Silver (Gold/Silver/
   -- Crystal), with a RIVAL LOOK row when it has more than one front
-  -- sprite. OFF keeps the game's own rival. -Elvie
+  -- sprite. Another mod's looks can be the rival too; that mod draws them.
+  -- OFF keeps the game's own rival. -Elvie
   for i = #rivalChoices, 1, -1 do rivalChoices[i] = nil end
   table.insert(rivalChoices, { "OFF", RIVAL_OFF })
   for _, character in ipairs(characterChoices) do
-    if #ownLooks(frontFoldersByCharacter[character.key]) > 0 then
+    if frontFoldersByCharacter[character.key] and #frontFoldersByCharacter[character.key] > 0 then
       table.insert(rivalChoices, { character.label, character.key })
     end
   end
@@ -292,11 +293,12 @@ function kris.init(mod)
     key = "rival", type = "choice", label = "RIVAL", choices = rivalChoices, default = RIVAL_OFF,
   })
   for _, character in ipairs(characterChoices) do
-    local fronts = ownLooks(frontFoldersByCharacter[character.key])
+    local fronts = frontFoldersByCharacter[character.key] or {}
     if #fronts > 1 then
+      local own = ownLooks(fronts)
       table.insert(optionRows, {
         key = "rivalLookFor_" .. sanitizeKey(character.key), type = "choice", label = "RIVAL LOOK",
-        choices = toChoicePairs(fronts), default = defaultKey(fronts, "original"),
+        choices = toChoicePairs(fronts), default = defaultKey(#own > 0 and own or fronts, "original"),
         visible_if = { key = "rival", equals = character.key },
       })
     end
@@ -407,6 +409,25 @@ function kris.init(mod)
 
   local genderMode = (type(overworldMeta.genderMode) == "string" and VALID_GENDER_MODES[overworldMeta.genderMode])
     and overworldMeta.genderMode or DEFAULT_GENDER_MODE
+
+  -- Another mod's look (see addLooks below) isn't known yet at this
+  -- point, and its meta.json is in that mod's folder, so the gender it
+  -- had when last picked is kept in this mod's cache: its key, character
+  -- and gender, a line each. It's used while that look is still the
+  -- pick. -Elvie
+  local PROVIDED_GENDER = "provided_gender.txt"
+  local cache = type(mod.cache) == "table" and mod.cache or nil
+  do
+    local character = mod.options:get("character")
+    local ok, text = false, nil
+    if cache then ok, text = pcall(cache.read, cache, PROVIDED_GENDER) end
+    local key, who, mode = (ok and type(text) == "string" and text or ""):match("^([^\n]+)\n([^\n]+)\n(%a+)")
+    local picked = character and mod.options:get("frontSpriteFor_" .. sanitizeKey(character))
+    if key and who == character and VALID_GENDER_MODES[mode]
+        and (picked == key or not frontFoldersByCharacter[character]) then
+      genderMode = mode
+    end
+  end
 
   -- Overworld sprite files and colours, resolved per file through the
   -- character's folders (the front sprite's folder first), then Crystal's
@@ -543,20 +564,33 @@ function kris.init(mod)
   -- Looks from another mod
   -- exports.lens.addLooks(provider) adds another mod's looks to the
   -- lists (Emerald Lens adds its Gen 3 and 4 looks). provider is
-  --   { id, looks = { { key, character, label, credit } },
+  --   { id, looks = { { key, character, label, credit, folder } },
   --     configure = function(key) ... end, preview = function(key) ... end }
   -- configure gets the look's key while it's your front sprite, and nil
-  -- when it isn't, so that mod draws the player only then; preview
-  -- returns { pic = path } for the LENS screen. This mod stays in charge
-  -- of the choices. -Elvie
+  -- when it isn't, so that mod draws the player only then;
+  -- configureRival(key) is the same for the RIVAL (optional); preview
+  -- returns { pic = path, card = image } for the LENS screen and the Gen 2
+  -- trainer card. This mod stays in charge of the choices. -Elvie
   -- --------------------------------------------------
   local providers = {}
+  -- set with the rival below; another mod's looks can be the rival -Elvie
+  local rivalChanged = function() end
   local function notifyProviders()
     local current, key = providerNow()
     for _, provider in ipairs(providers) do
       if type(provider.configure) == "function" then
         pcall(provider.configure, provider == current and key or nil)
       end
+    end
+    -- the picked look's gender, for the text after a restart (see
+    -- PROVIDED_GENDER above); gone again with this mod's own look -Elvie
+    local look = key and provided[key] and provided[key].look
+    if not cache then return end
+    if look and VALID_GENDER_MODES[look.genderMode] then
+      pcall(cache.write, cache, PROVIDED_GENDER,
+        key .. "\n" .. tostring(mod.options:get("character")) .. "\n" .. look.genderMode)
+    else
+      pcall(cache.delete, cache, PROVIDED_GENDER)
     end
   end
 
@@ -568,7 +602,11 @@ function kris.init(mod)
       providers[#providers + 1] = provider
       for _, look in ipairs(provider.looks) do
         local character = type(look.character) == "string" and look.character or nil
-        if type(look.key) == "string" and character and not provided[look.key] then
+        -- a folder this mod has itself (a Game Boy look copied into the
+        -- other mod) is left out, so it isn't listed twice -Elvie
+        local own = type(look.folder) == "string"
+          and (frontSpriteVariants[look.folder] or battleSpriteVariants[look.folder])
+        if type(look.key) == "string" and character and not provided[look.key] and not own then
           local label = tostring(look.label or look.key)
           -- a label this character already has gets a + -Elvie
           for _, entry in ipairs(foldersOf[character] or {}) do
@@ -583,6 +621,7 @@ function kris.init(mod)
       sortLists()
       mod.options:define(buildRows())
       notifyProviders()
+      rivalChanged()
       return true
     end,
   }
@@ -629,9 +668,25 @@ function kris.init(mod)
     restoreRecords()
     local data = liveData()
     local character = mod.options:get("rival")
-    if not data or character == nil or character == RIVAL_OFF or not foldersOf[character] then return end
-    local selected = resolveCharacterFolder(frontFoldersByCharacter, character, "rivalLookFor_")
+    local picked = character ~= nil and character ~= RIVAL_OFF and foldersOf[character]
+      and resolveCharacterFolder(frontFoldersByCharacter, character, "rivalLookFor_") or nil
+    -- another mod's look: that mod writes the rival itself, after this
+    -- mod has put its own changes back -Elvie
+    local entry = picked and provided[picked]
+    for _, provider in ipairs(providers) do
+      if type(provider.configureRival) == "function" then
+        pcall(provider.configureRival, entry and entry.provider == provider and picked or nil)
+      end
+    end
+    if entry then return end
+    if not data or not picked then return end
+    local selected = picked
     local chain = chainFor(character, selected)
+    -- he, she or they in the lines about the rival, by the look's
+    -- genderMode (rival_text.lua, shared with Emerald Lens) -Elvie
+    local rivalMeta = readMeta(selected)
+    local rivalGender = VALID_GENDER_MODES[rivalMeta.genderMode] and rivalMeta.genderMode or DEFAULT_GENDER_MODE
+    require("mods.crystal.rival_text").apply(data, isGen2 and 2 or 1, rivalGender, setField)
     local colorMode = mod.options:get("colorMode")
     local function pic(name)
       for _, key in ipairs(chain) do
@@ -670,6 +725,8 @@ function kris.init(mod)
     end
   end
 
+  rivalChanged = applyRival
+
   -- the rival's colours, the same way as the player's -Elvie
   local playerObp = PaletteFX.spriteObp
   PaletteFX.spriteObp = function(spriteDef, seed)
@@ -699,7 +756,7 @@ function kris.init(mod)
       overworld = resolveOverworld()
       notifyProviders()
     end
-    if key == "rival" or key:sub(1, 14) == "rivalLookFor_" or key == "colorMode" then
+    if key == "rival" or key:sub(1, 13) == "rivalLookFor_" or key == "colorMode" then
       serial = serial + 1
       applyRival()
     end
@@ -753,7 +810,24 @@ function kris.init(mod)
       end
       portraitVariant = portraitVariant or frontVariant
 
+      -- another mod's look: its card portrait, already fitted to the box -Elvie
+      local current, currentKey = providerNow()
+      local providedCard
+      if current and type(current.preview) == "function" then
+        local ok, preview = pcall(current.preview, currentKey)
+        providedCard = ok and type(preview) == "table" and preview.card or nil
+      end
+
       instance.drawPortrait = function()
+        if current then
+          if not providedCard then return end
+          local iw, ih = providedCard:getDimensions()
+          local x, y = 14 * 8 + math.floor((40 - iw) / 2), 1 * 8 + 56 - ih
+          if type(PaletteFX.markTrueColor) == "function" then pcall(PaletteFX.markTrueColor, x, y, iw, ih) end
+          love.graphics.setColor(1, 1, 1, 1)
+          love.graphics.draw(providedCard, x, y)
+          return
+        end
         if not portraitVariant then return end
         local image = mod.assets:image(portraitVariant.path)
         if not image then return end
@@ -846,10 +920,17 @@ function kris.init(mod)
     if Runtime and Runtime.safeMode then return end
     game = liveGame(game)
     if not game then return end
-    if type(game.options) == "table" then
-      game.options.modOptions = game.options.modOptions or {}
-      game.options.modOptions[mod.id] = game.options.modOptions[mod.id] or {}
-      game.options.modOptions[mod.id][key] = value
+    -- The settings that get saved: game.options in Gold/Silver/Crystal and
+    -- the Gen 3 games, game.save.options in Red/Blue/Yellow (the same table
+    -- in Gold/Silver/Crystal), as the Mods manager writes them -Elvie
+    local saved = {}
+    if type(game.options) == "table" then saved[#saved + 1] = game.options end
+    local fromSave = type(game.save) == "table" and game.save.options
+    if type(fromSave) == "table" and fromSave ~= game.options then saved[#saved + 1] = fromSave end
+    for _, t in ipairs(saved) do
+      t.modOptions = t.modOptions or {}
+      t.modOptions[mod.id] = t.modOptions[mod.id] or {}
+      t.modOptions[mod.id][key] = value
     end
     local loader = game.mods
     if type(loader) == "table" then
@@ -899,7 +980,7 @@ function kris.init(mod)
     end
     rows[#rows + 1] = { key = "rival", label = "RIVAL", who = "rival", choices = rivalChoices }
     local rival = mod.options:get("rival")
-    local rivalFronts = rival and ownLooks(frontFoldersByCharacter[rival])
+    local rivalFronts = rival and frontFoldersByCharacter[rival]
     if rivalFronts and #rivalFronts > 1 then
       rows[#rows + 1] = { key = "rivalLookFor_" .. sanitizeKey(rival), label = "R.LOOK", who = "rival",
         choices = toChoicePairs(rivalFronts) }
