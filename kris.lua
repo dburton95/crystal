@@ -525,8 +525,11 @@ function kris.init(mod)
     return renderers[kind] or nil
   end
 
+  -- a `local Player` declared inside just one branch falls out of scope
+  -- at its `end`, so the patch below silently touched an unrelated
+  -- global instead of this module. -Elvie
+  local Player = isGen2 and require("src.world.gen2.Player") or require("src.world.Player")
   if isGen2 then
-    local Player = require("src.world.gen2.Player")
     local KIND = { SPRITE_CHRIS = "walk", SPRITE_CHRIS_BIKE = "bike" }
     -- with GENDER on MY SAVE, Kris too -Elvie
     local KRIS = { SPRITE_KRIS = "walk", SPRITE_KRIS_BIKE = "bike" }
@@ -544,7 +547,6 @@ function kris.init(mod)
       if not ok then error(err, 0) end
     end
   else
-    local Player = require("src.world.Player")
     local originalDraw = Player.draw
     Player.draw = function(self, ...)
       if providerNow() then return originalDraw(self, ...) end
@@ -558,6 +560,24 @@ function kris.init(mod)
       local ok, err = pcall(originalDraw, self, ...)
       self.sprite, self.bikeSprite, self.fishTiles = s1, s2, fish
       if not ok then error(err, 0) end
+    end
+  end
+
+  -- Renderers that skip Player.draw (Dramatic Shape Voxel Mod draws the
+  -- player as a 3D billboard from pose()'s sprite) still get our look.
+  local unpackAll = table.unpack or unpack
+  local originalPose = Player.pose
+  if originalPose then
+    Player.pose = function(self, ...)
+      local r = { originalPose(self, ...) }
+      if not providerNow() then
+        if r[1] ~= nil and r[1] == self.sprite then
+          r[1] = rendererFor("walk") or r[1]
+        elseif self.bikeSprite and r[1] == self.bikeSprite then
+          r[1] = rendererFor("bike") or r[1]
+        end
+    end
+      return unpackAll(r, 1, table.maxn(r))
     end
   end
 
